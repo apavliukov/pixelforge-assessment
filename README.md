@@ -7,12 +7,12 @@ The reasoning behind the open choices is in [docs/DECISIONS.md](docs/DECISIONS.m
 
 ## Local and production at a glance
 
-| | Local | Production |
-|---|---|---|
-| Defined by | `compose.yaml` (Laravel Sail) | `docker/production/` |
-| Runs | app container + Postgres | one container: web server, queue worker, scheduler |
-| Database | Postgres in Sail | managed Postgres (Neon) |
-| Started by | `make local-dev` | the hosting platform, from the `Dockerfile` |
+|            | Local                         | Production                                         |
+| ---------- | ----------------------------- | -------------------------------------------------- |
+| Defined by | `compose.yaml` (Laravel Sail) | `docker/production/`                               |
+| Runs       | app container + Postgres      | one container: web server, queue worker, scheduler |
+| Database   | Postgres in Sail              | managed Postgres (Neon)                            |
+| Started by | `make local-dev`              | the hosting platform, from the `Dockerfile`        |
 
 ## Local development
 
@@ -21,7 +21,7 @@ Requires Docker, PHP 8.4 with Composer (only to install Sail itself) and Node.
 ```sh
 cp .env.example .env          # then fill in PIXELFORGE_API_KEY and PIXELFORGE_WEBHOOK_SECRET
 composer install
-npm install
+npm install                   # also installs the git hooks (lefthook.yml)
 make local-up                 # start the containers
 vendor/bin/sail artisan key:generate
 vendor/bin/sail artisan migrate
@@ -34,6 +34,9 @@ Pixelforge delivers results by webhook, so it must be able to reach the app. Set
 `DEV_TUNNEL_COMMAND` in `.env` to the command of any tunnel tool and `make local-dev` starts it
 alongside the rest. Without a tunnel the app still works: unfinished generations are polled once a
 minute.
+
+The pre-commit hook formats staged files with `vp check`, Rector and Pint; the PHP tools run in
+Sail, so the containers must be up. The same checks run in CI (`composer ci:check`).
 
 Tests run against the `testing` database in the same Postgres container:
 
@@ -51,16 +54,16 @@ scheduler and the web server (`docker/production/start.sh`). It listens on `$POR
 
 Environment variables the host must provide:
 
-| Variable | Value |
-|---|---|
-| `APP_KEY` | output of `php artisan key:generate --show` |
-| `APP_ENV` | `production` |
-| `APP_DEBUG` | `false` |
-| `APP_URL` | public URL of the app |
-| `DB_CONNECTION` | `pgsql` |
-| `DB_URL` | Postgres connection string |
-| `LOG_CHANNEL` | `stderr` |
-| `PIXELFORGE_API_KEY` | API key |
-| `PIXELFORGE_WEBHOOK_SECRET` | `whsec_…` signing secret |
+| Variable                    | Value                                       |
+| --------------------------- | ------------------------------------------- |
+| `APP_KEY`                   | output of `php artisan key:generate --show` |
+| `APP_ENV`                   | `production`                                |
+| `APP_DEBUG`                 | `false`                                     |
+| `APP_URL`                   | public URL of the app                       |
+| `DB_CONNECTION`             | `pgsql`                                     |
+| `DB_URL`                    | Postgres connection string                  |
+| `LOG_CHANNEL`               | `stderr`                                    |
+| `PIXELFORGE_API_KEY`        | API key                                     |
+| `PIXELFORGE_WEBHOOK_SECRET` | `whsec_…` signing secret                    |
 
 Health check path: `/up`.

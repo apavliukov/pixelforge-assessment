@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
@@ -33,7 +35,7 @@ final class AppServiceProvider extends ServiceProvider
      * built-in server is dropped; the tunnel is whatever the developer puts in
      * DEV_TUNNEL_COMMAND to receive Pixelforge webhooks locally.
      */
-    protected function registerDevCommands(): void
+    private function registerDevCommands(): void
     {
         if (! $this->app->environment('local')) {
             return;
@@ -50,7 +52,7 @@ final class AppServiceProvider extends ServiceProvider
     /**
      * Configure default behaviors for production-ready applications.
      */
-    protected function configureDefaults(): void
+    private function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
 
