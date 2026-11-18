@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Development Tunnel
+    |--------------------------------------------------------------------------
+    |
+    | Optional shell command that `artisan dev` runs next to the other dev
+    | processes to expose the app publicly, so Pixelforge webhooks can reach
+    | a local machine. For example: "ngrok http 80".
+    |
+    */
+
+    'dev_tunnel_command' => env('DEV_TUNNEL_COMMAND'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

@@ -3,12 +3,13 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
@@ -24,6 +25,26 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerDevCommands();
+    }
+
+    /**
+     * Processes started by `sail artisan dev`. Sail already serves the app, so the
+     * built-in server is dropped; the tunnel is whatever the developer puts in
+     * DEV_TUNNEL_COMMAND to receive Pixelforge webhooks locally.
+     */
+    protected function registerDevCommands(): void
+    {
+        if (! $this->app->environment('local')) {
+            return;
+        }
+
+        DevCommands::except('server');
+        DevCommands::artisan('schedule:work', 'scheduler');
+
+        if ($tunnelCommand = config('app.dev_tunnel_command')) {
+            DevCommands::register($tunnelCommand, 'tunnel');
+        }
     }
 
     /**
