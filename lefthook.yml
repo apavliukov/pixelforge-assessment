@@ -1,18 +1,18 @@
 # Git hooks: npm install sets them up. PHP tools run inside Sail, so the containers must be up.
 pre-commit:
-  commands:
-    frontend:
-      priority: 1
-      glob: '*.{js,ts,vue,css,json,md}'
-      run: npx vp check --fix --no-error-on-unmatched-pattern {staged_files}
-      stage_fixed: true
-    rector:
-      priority: 2
-      glob: '*.php'
-      run: vendor/bin/sail bin rector process {staged_files}
-      stage_fixed: true
-    pint:
-      priority: 3
-      glob: '*.php'
-      run: vendor/bin/sail bin pint {staged_files}
-      stage_fixed: true
+    commands:
+        frontend:
+            priority: 1
+            glob: '*.{js,ts,vue,css,json,md}'
+            run: npx vp check --fix --no-error-on-unmatched-pattern {staged_files}
+            stage_fixed: true
+        rector:
+            priority: 2
+            glob: '*.php'
+            run: vendor/bin/sail bin rector process {staged_files}
+            stage_fixed: true
+        pint:
+            priority: 3
+            glob: '*.php'
+            run: vendor/bin/sail bin pint {staged_files}
+            stage_fixed: true
