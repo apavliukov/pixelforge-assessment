@@ -16,6 +16,10 @@ use UnexpectedValueException;
 final readonly class PricingData
 {
     /**
+     * @param  TokenRates  $rates  current price per token of each type
+     * @param  int  $charactersPerTextToken  prompt characters per input text token
+     * @param  int  $textTokenVarianceBasisPoints  how far the text token count may vary, both ways
+     * @param  int  $tokensPerReferenceImage  input image tokens per reference image
      * @param  array<string, array<string, int>>  $outputTokens  by quality, then size
      * @param  array<string, array{min: int, max: int}>  $reasoningTokens  by quality
      * @param  array<string, mixed>  $payload  the validated response, as received

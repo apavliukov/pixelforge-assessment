@@ -83,7 +83,8 @@ as a minimum and a maximum, using the published pricing:
 - output tokens: the published count for the chosen quality and size;
 - reasoning tokens: the published minimum and maximum for the chosen quality.
 
-Characters SHALL be counted as Unicode characters. Both bounds SHALL include the markup. The actual
+Characters SHALL be counted as Unicode code points, so an emoji built from several code points
+(a skin tone, a joined family) counts as several characters. Both bounds SHALL include the markup. The actual
 charge for a generation with the same inputs and rates SHALL never exceed the maximum.
 
 #### Scenario: Documented maximum

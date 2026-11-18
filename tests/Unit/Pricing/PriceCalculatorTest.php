@@ -40,3 +40,17 @@ it('estimates the user charge as a range including the markup', function (
     'no reference images' => [str_repeat('a', 400), ImageSize::Landscape, ImageQuality::High, 0, 338_656_250, 448_218_750],
     'five emoji count as five characters' => ['🙂🙂🙂🙂🙂', ImageSize::Square, ImageQuality::Low, 0, 14_006_250, 21_831_250],
 ]);
+
+it('refuses to estimate a quality and size the pricing does not publish', function (): void {
+    $payload = publishedPricing();
+    unset($payload['tokens']['output']['high']['1024x1024']);
+
+    new PriceCalculator()->estimate(
+        prompt: 'A lighthouse',
+        size: ImageSize::Square,
+        quality: ImageQuality::High,
+        referenceImageCount: 0,
+        pricing: PricingData::fromArray($payload),
+        markupBasisPoints: 12_500,
+    );
+})->throws(UnexpectedValueException::class, 'high quality at 1024x1024');

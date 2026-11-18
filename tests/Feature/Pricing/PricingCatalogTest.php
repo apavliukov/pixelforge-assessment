@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Dto\Pixelforge\PricingData;
 use App\Exceptions\PricingUnavailableException;
 use App\Pricing\PricingCatalog;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Support\Facades\Http;
 
 function pricingWithOutputRate(string $rate): array
@@ -37,12 +39,12 @@ it('keeps the previous pricing when the refresh fails', function (Closure $faili
     $catalog = resolve(PricingCatalog::class);
     $catalog->refresh();
 
-    rescue(fn () => $catalog->refresh(), report: false);
+    rescue(fn (): PricingData => $catalog->refresh(), report: false);
 
     expect($catalog->current()->rates->output->nano)->toBe(40_000);
 })->with([
-    'Pixelforge unreachable' => [fn () => Http::response(status: 503)],
-    'pricing without reasoning ranges' => [function () {
+    'Pixelforge unreachable' => [fn (): PromiseInterface => Http::response(status: 503)],
+    'pricing without reasoning ranges' => [function (): PromiseInterface {
         $payload = publishedPricing();
         unset($payload['tokens']['reasoning']);
 
