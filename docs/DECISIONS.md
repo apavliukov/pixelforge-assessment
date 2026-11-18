@@ -38,8 +38,8 @@ Prompt length is counted in Unicode characters; JavaScript's `length` counts UTF
 emoji would be counted twice. One implementation, one answer.
 
 **Pricing is refreshed by a scheduled job into the cache; request code only reads the cache.**
-Estimating must not depend on a live HTTP call. If the cache is empty the pricing is fetched once
-synchronously; if that fails too, submitting is blocked, because we never submit without showing a
+Estimating must not depend on a live HTTP call. If the cache is empty, or no refresh has succeeded for
+an hour, the pricing is fetched once synchronously; if that fails too, submitting is blocked, because we never submit without showing a
 price. A malformed pricing response is rejected and the last good one stays.
 Rejected: a `pricing` table. Pricing is derived data whose source of truth is the provider, and
 history does not need it: every generation stores the rates it was billed at.

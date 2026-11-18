@@ -44,7 +44,12 @@ expect()->extend('toBeOne', fn () => $this->toBe(1));
 |
 */
 
-function something(): void
+/**
+ * The live `GET /v1/pricing` response, as recorded on 2026-11-18.
+ *
+ * @return array<string, mixed>
+ */
+function publishedPricing(): array
 {
-    // ..
+    return json_decode(file_get_contents(__DIR__.'/Fixtures/Pixelforge/pricing.json'), true, flags: JSON_THROW_ON_ERROR);
 }
