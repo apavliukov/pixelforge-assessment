@@ -51,6 +51,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $completed_at
  * @property CarbonImmutable $created_at the submission time
  * @property CarbonImmutable $updated_at
+ *
+ * @mixin IdeHelperGeneration
  */
 #[Fillable([
     'prompt',

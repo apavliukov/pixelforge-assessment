@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $payload the raw request body, exactly as signed
  * @property CarbonImmutable|null $processed_at
  * @property CarbonImmutable|null $created_at
+ *
+ * @mixin IdeHelperWebhookEvent
  */
 #[Fillable([
     'event_id',

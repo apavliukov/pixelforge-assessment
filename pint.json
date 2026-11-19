@@ -1,7 +1,7 @@
 {
     "preset": "laravel",
     "exclude": ["docker"],
-    "notName": ["*.blade.php"],
+    "notName": ["*.blade.php", "_ide_helper*.php", ".phpstorm.meta.php"],
     "rules": {
         "array_push": true,
         "backtick_to_shell_exec": true,
