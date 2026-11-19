@@ -68,3 +68,31 @@ Environment variables the host must provide:
 | `PIXELFORGE_WEBHOOK_SECRET` | `whsec_…` signing secret                    |
 
 Health check path: `/up`.
+
+## What I would do next
+
+Things left out on purpose to keep the assessment small, in the order I would take them on a
+production project.
+
+### Generate the frontend types from the backend
+
+The shape of a generation is written twice: `GenerationResource` in PHP and
+`resources/js/types/generations.ts` in TypeScript. Only the shape is duplicated — every amount,
+status text and failure reason is produced by the backend — and Pest tests pin the PHP side, but
+nothing checks that the TypeScript side still matches it.
+
+The fix is to describe the data once and generate the rest: turn the resource into a
+`spatie/laravel-data` object with typed properties and let `spatie/typescript-transformer` emit the
+TypeScript types, enums included, as part of the build. For one resource of 14 fields and three
+enums, two dependencies cost more than the risk they remove; with a second or third resource they
+pay for themselves.
+
+### Remember that pricing is unavailable
+
+Pricing is cached for an hour and refreshed by a job every five minutes. When the copy has expired
+and Pixelforge is still down, `PricingCatalog::current()` tries to fetch it again on every page load
+and every estimate request, and each attempt can hold a PHP worker until the HTTP timeout. A few
+users typing in the form during a long outage could occupy every worker.
+
+The fix is to cache the failure for 30–60 seconds, so that during an outage the page answers
+"pricing unavailable" at once and only the scheduled job keeps asking Pixelforge.
