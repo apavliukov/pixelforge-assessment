@@ -9,10 +9,15 @@ php artisan optimize
 # jobs: the queue worker and the scheduler run here, next to the web server.
 # On a paid plan each becomes its own Render service and these lines go away.
 #
-# The worker exits on its own every hour (--max-time, to release memory) and may
+# Two workers, because a worker runs one job at a time: sends to Pixelforge can
+# each take up to 10 seconds, and results that have already arrived by webhook
+# must not wait behind them. The second worker also runs the pricing refresh.
+#
+# A worker exits on its own every hour (--max-time, to release memory) and may
 # also crash. Nothing else would start it again, so the loop does; "sleep 1"
 # keeps a worker that fails immediately from spinning the CPU.
-(while true; do php artisan queue:work --max-time=3600 || sleep 1; done) &
+(while true; do php artisan queue:work --queue=submissions --max-time=3600 || sleep 1; done) &
+(while true; do php artisan queue:work --queue=webhooks,default --max-time=3600 || sleep 1; done) &
 # Laravel's replacement for a system cron entry: runs the schedule every minute.
 php artisan schedule:work &
 

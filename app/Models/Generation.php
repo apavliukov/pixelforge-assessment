@@ -1,0 +1,201 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use App\Casts\MoneyCast;
+use App\Enums\GenerationStatus;
+use App\Enums\ImageQuality;
+use App\Enums\ImageSize;
+use App\Pricing\Money;
+use Carbon\CarbonImmutable;
+use Database\Factories\GenerationFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * One user's request for one image, from submission to its final status. Only the request is
+ * mass assignable; everything the provider reports is set by `ApplyProviderState`.
+ *
+ * @property string $id
+ * @property int $user_id
+ * @property string|null $provider_id
+ * @property string $prompt
+ * @property ImageSize $size
+ * @property ImageQuality $quality
+ * @property list<string> $reference_images
+ * @property GenerationStatus $status
+ * @property int $price_multiplier_basis_points the provider cost multiplier at submission, 12500 = ×1.25
+ * @property Money $estimate_min
+ * @property Money $estimate_max
+ * @property int|null $input_text_tokens
+ * @property int|null $input_image_tokens
+ * @property int|null $output_tokens
+ * @property int|null $reasoning_tokens
+ * @property array<string, string>|null $rates the provider's rates per 1M tokens, as received
+ * @property Money|null $provider_cost null until the generation is finished
+ * @property Money|null $user_charge null until the generation is finished
+ * @property string|null $error_code
+ * @property string|null $error_message the provider's message, for the operator
+ * @property string|null $image_url
+ * @property CarbonImmutable|null $image_url_expires_at
+ * @property CarbonImmutable|null $provider_synced_at the last time the provider reported on it or was asked
+ * @property CarbonImmutable|null $completed_at
+ * @property CarbonImmutable $created_at the submission time
+ * @property CarbonImmutable $updated_at
+ */
+#[Fillable([
+    'prompt',
+    'size',
+    'quality',
+    'reference_images',
+    'status',
+    'price_multiplier_basis_points',
+    'estimate_min',
+    'estimate_max',
+])]
+final class Generation extends Model
+{
+    /** @use HasFactory<GenerationFactory> */
+    use HasFactory;
+    use HasUuids;
+
+    /**
+     * How long after submission a generation is polled every minute rather than every ten.
+     */
+    public const int YOUNG_FOR_MINUTES = 10;
+
+    /**
+     * How long a generation may wait for the provider to accept it, from submission.
+     */
+    public const int WAIT_LIMIT_MINUTES = 10;
+
+    /**
+     * A generation still waiting this long was lost by its send job, which gives up at the wait
+     * limit; the margin leaves a send in progress time to finish.
+     */
+    public const int ABANDONED_AFTER_MINUTES = self::WAIT_LIMIT_MINUTES + 5;
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * A failure this app decided before the provider accepted the generation. It is provisional:
+     * any state the provider reports for the generation replaces it.
+     */
+    public function isLocalFailure(): bool
+    {
+        return $this->status === GenerationStatus::Failed && $this->provider_id === null;
+    }
+
+    public function hasWaitedTooLong(): bool
+    {
+        return $this->created_at->addMinutes(self::WAIT_LIMIT_MINUTES)->isPast();
+    }
+
+    /**
+     * Records a failure: a failed generation is never charged. Not saved.
+     *
+     * @param  string|null  $message  what went wrong, for the operator
+     */
+    public function markFailed(string $code, ?string $message, ?CarbonImmutable $completedAt = null): void
+    {
+        $this->status = GenerationStatus::Failed;
+        $this->error_code = $code;
+        $this->error_message = $message;
+        $this->provider_cost = Money::fromNano(0);
+        $this->user_charge = Money::fromNano(0);
+        $this->completed_at = $completedAt ?? now();
+    }
+
+    /**
+     * Undoes `markFailed()`, for a local failure the provider's report replaces. Not saved.
+     */
+    public function clearFailure(): void
+    {
+        $this->error_code = null;
+        $this->error_message = null;
+        $this->provider_cost = null;
+        $this->user_charge = null;
+        $this->completed_at = null;
+    }
+
+    /**
+     * Accepted, unfinished generations the provider has not reported on recently: within a
+     * minute while they are young, within ten minutes after that. Least recently checked first.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function dueForPolling(Builder $query): void
+    {
+        $youngSince = now()->subMinutes(self::YOUNG_FOR_MINUTES);
+
+        $query->whereIn('status', [GenerationStatus::Queued, GenerationStatus::Processing])
+            ->whereNotNull('provider_id')
+            ->where(fn (Builder $dueQuery): Builder => $dueQuery
+                ->where(fn (Builder $youngQuery): Builder => $youngQuery
+                    ->where('created_at', '>=', $youngSince)
+                    ->where('provider_synced_at', '<', now()->subMinute()))
+                ->orWhere(fn (Builder $oldQuery): Builder => $oldQuery
+                    ->where('created_at', '<', $youngSince)
+                    ->where('provider_synced_at', '<', now()->subMinutes(10))))
+            ->oldest('provider_synced_at');
+    }
+
+    /**
+     * Waiting, queued or processing.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function unfinished(Builder $query): void
+    {
+        $query->whereNotIn('status', [GenerationStatus::Succeeded, GenerationStatus::Failed]);
+    }
+
+    /**
+     * Generations still waiting long after every send attempt should have finished: the job that
+     * sends them was lost.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function abandonedWhileWaiting(Builder $query): void
+    {
+        $query->where('status', GenerationStatus::Waiting)
+            ->where('created_at', '<', now()->subMinutes(self::ABANDONED_AFTER_MINUTES));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'size' => ImageSize::class,
+            'quality' => ImageQuality::class,
+            'reference_images' => 'array',
+            'status' => GenerationStatus::class,
+            'estimate_min' => MoneyCast::class,
+            'estimate_max' => MoneyCast::class,
+            'rates' => 'array',
+            'provider_cost' => MoneyCast::class,
+            'user_charge' => MoneyCast::class,
+            'image_url_expires_at' => 'datetime',
+            'provider_synced_at' => 'datetime',
+            'completed_at' => 'datetime',
+        ];
+    }
+}

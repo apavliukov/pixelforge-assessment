@@ -26,9 +26,9 @@ final readonly class PriceCalculator
             ->plus($rates->reasoning->times($usage->reasoning));
     }
 
-    public function userCharge(Money $providerCost, int $markupBasisPoints): Money
+    public function userCharge(Money $providerCost, int $priceMultiplierBasisPoints): Money
     {
-        return $providerCost->applyBasisPoints($markupBasisPoints);
+        return $providerCost->applyBasisPoints($priceMultiplierBasisPoints);
     }
 
     /**
@@ -41,7 +41,7 @@ final readonly class PriceCalculator
         ImageQuality $quality,
         int $referenceImageCount,
         PricingData $pricing,
-        int $markupBasisPoints,
+        int $priceMultiplierBasisPoints,
     ): PriceEstimate {
         $expectedTextTokens = $this->divideRoundingUp(mb_strlen($prompt), $pricing->charactersPerTextToken);
         $variance = $pricing->textTokenVarianceBasisPoints;
@@ -64,8 +64,8 @@ final readonly class PriceCalculator
         );
 
         return new PriceEstimate(
-            min: $this->userCharge($this->providerCost($fewest, $pricing->rates), $markupBasisPoints),
-            max: $this->userCharge($this->providerCost($most, $pricing->rates), $markupBasisPoints),
+            min: $this->userCharge($this->providerCost($fewest, $pricing->rates), $priceMultiplierBasisPoints),
+            max: $this->userCharge($this->providerCost($most, $pricing->rates), $priceMultiplierBasisPoints),
         );
     }
 

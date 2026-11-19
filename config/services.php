@@ -32,6 +32,7 @@ return [
 
     'pixelforge' => [
         'key' => env('PIXELFORGE_API_KEY'),
+        'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
     ],
 
     'slack' => [

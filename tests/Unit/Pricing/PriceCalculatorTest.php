@@ -31,7 +31,7 @@ it('estimates the user charge as a range including the markup', function (
         quality: $quality,
         referenceImageCount: $referenceImageCount,
         pricing: PricingData::fromArray(publishedPricing()),
-        markupBasisPoints: 12_500,
+        priceMultiplierBasisPoints: 12_500,
     );
 
     expect([$estimate->min->nano, $estimate->max->nano])->toBe([$min, $max]);
@@ -51,6 +51,6 @@ it('refuses to estimate a quality and size the pricing does not publish', functi
         quality: ImageQuality::High,
         referenceImageCount: 0,
         pricing: PricingData::fromArray($payload),
-        markupBasisPoints: 12_500,
+        priceMultiplierBasisPoints: 12_500,
     );
 })->throws(UnexpectedValueException::class, 'high quality at 1024x1024');

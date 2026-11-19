@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Dto\Pixelforge\GenerationData;
+use App\Models\Generation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /*
@@ -52,4 +55,85 @@ expect()->extend('toBeOne', fn () => $this->toBe(1));
 function publishedPricing(): array
 {
     return json_decode(file_get_contents(__DIR__.'/Fixtures/Pixelforge/pricing.json'), true, flags: JSON_THROW_ON_ERROR);
+}
+
+/**
+ * The documented generation object in the given status, with the fields that status does not
+ * have cleared, then the overrides applied.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function providerGeneration(string $status = 'succeeded', array $overrides = []): array
+{
+    $generation = json_decode(file_get_contents(__DIR__.'/Fixtures/Pixelforge/generation.json'), true, flags: JSON_THROW_ON_ERROR);
+    $generation['status'] = $status;
+
+    if ($status !== 'succeeded') {
+        $generation['image_url'] = null;
+        $generation['image_url_expires_at'] = null;
+        $generation['usage'] = null;
+    }
+
+    if ($status === 'queued' || $status === 'processing') {
+        $generation['completed_at'] = null;
+    }
+
+    if ($status === 'failed') {
+        $generation['error'] = [
+            'code' => 'generation_failed',
+            'message' => 'The model could not produce an image for this prompt.',
+        ];
+    }
+
+    return array_replace($generation, $overrides);
+}
+
+/**
+ * A webhook event body, as Pixelforge sends it.
+ *
+ * @param  array<string, mixed>|null  $generation  the generation object; null for `ping`
+ */
+function webhookEventBody(string $type, ?array $generation): string
+{
+    return json_encode([
+        'id' => 'evt_01JC2Z9B7K2M4P6R8T0V3X5Z7A',
+        'object' => 'event',
+        'type' => $type,
+        'created_at' => '2026-11-04T14:03:29Z',
+        'data' => ['object' => $generation],
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+}
+
+function pixelforgeSignature(string $body, ?int $timestamp = null, string $secret = 'whsec_test'): string
+{
+    $timestamp ??= time();
+
+    return "t={$timestamp},v1=".hash_hmac('sha256', "{$timestamp}.{$body}", $secret);
+}
+
+function deliverWebhook(string $body, ?string $signature): TestResponse
+{
+    $server = ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'];
+
+    if ($signature !== null) {
+        $server['HTTP_PIXELFORGE_SIGNATURE'] = $signature;
+    }
+
+    return test()->call('POST', '/api/webhooks/pixelforge', server: $server, content: $body);
+}
+
+/**
+ * A provider state for the given local generation: its provider identifier (or a new one when it
+ * has none yet) and its local identifier in the metadata.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function providerStateFor(Generation $generation, string $status, array $overrides = []): GenerationData
+{
+    return GenerationData::fromArray(providerGeneration($status, [
+        'id' => $generation->provider_id ?? 'gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K',
+        'metadata' => ['local_id' => $generation->id],
+        ...$overrides,
+    ]));
 }

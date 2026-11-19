@@ -7,12 +7,12 @@ The reasoning behind the open choices is in [docs/DECISIONS.md](docs/DECISIONS.m
 
 ## Local and production at a glance
 
-|            | Local                         | Production                                         |
-| ---------- | ----------------------------- | -------------------------------------------------- |
-| Defined by | `compose.yaml` (Laravel Sail) | `docker/production/`                               |
-| Runs       | app container + Postgres      | one container: web server, queue worker, scheduler |
-| Database   | Postgres in Sail              | managed Postgres (Neon)                            |
-| Started by | `make local-dev`              | the hosting platform, from the `Dockerfile`        |
+|            | Local                         | Production                                              |
+| ---------- | ----------------------------- | ------------------------------------------------------- |
+| Defined by | `compose.yaml` (Laravel Sail) | `docker/production/`                                    |
+| Runs       | app container + Postgres      | one container: web server, two queue workers, scheduler |
+| Database   | Postgres in Sail              | managed Postgres (Neon)                                 |
+| Started by | `make local-dev`              | the hosting platform, from the `Dockerfile`             |
 
 ## Local development
 
@@ -25,7 +25,7 @@ npm install                   # also installs the git hooks (lefthook.yml)
 make local-up                 # start the containers
 vendor/bin/sail artisan key:generate
 vendor/bin/sail artisan migrate
-make local-dev                # Vite, queue worker, scheduler and logs in one terminal
+make local-dev                # Vite, queue listener, scheduler and logs in one terminal
 ```
 
 The app is served on `http://localhost` (set `APP_PORT` in `.env` to change the port).
@@ -49,8 +49,9 @@ vendor/bin/sail artisan test
 Production is a single Docker image, `docker/production/Dockerfile`, built from the repository root.
 The hosting platform builds and runs it; nothing in the `Makefile` is involved.
 
-On start the container runs migrations, caches the configuration, and starts the queue worker, the
-scheduler and the web server (`docker/production/start.sh`). It listens on `$PORT`.
+On start the container runs migrations, caches the configuration, and starts two queue workers
+(`submissions`; `webhooks` and `default`), the scheduler and the web server
+(`docker/production/start.sh`). It listens on `$PORT`.
 
 Environment variables the host must provide:
 

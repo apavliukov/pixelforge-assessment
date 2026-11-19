@@ -32,7 +32,8 @@ final class AppServiceProvider extends ServiceProvider
 
     /**
      * Processes started by `sail artisan dev`. Sail already serves the app, so the
-     * built-in server is dropped; the tunnel is whatever the developer puts in
+     * built-in server is dropped; one listener takes all three queues that production
+     * splits between two workers; the tunnel is whatever the developer puts in
      * DEV_TUNNEL_COMMAND to receive Pixelforge webhooks locally.
      */
     private function registerDevCommands(): void
@@ -42,6 +43,7 @@ final class AppServiceProvider extends ServiceProvider
         }
 
         DevCommands::except('server');
+        DevCommands::artisan('queue:listen --queue=webhooks,submissions,default --tries=1 --timeout=0', 'queue');
         DevCommands::artisan('schedule:work', 'scheduler');
 
         if ($tunnelCommand = config('app.dev_tunnel_command')) {

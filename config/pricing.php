@@ -6,15 +6,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Markup
+    | Price multiplier
     |--------------------------------------------------------------------------
     |
-    | What users pay on top of the provider cost, in basis points of that cost:
-    | 12500 charges 125% of it, a 25% markup. Each generation keeps the value
+    | The provider cost is multiplied by this to get the user charge. It is in
+    | basis points (1 = 0.01%, 10000 = 100%): 12500 charges 125% of the provider
+    | cost, a 25% markup. Each generation keeps the value
     | it was charged with, so changing it does not rewrite history.
     |
     */
 
-    'markup_bps' => 12500,
+    'price_multiplier_basis_points' => 12500,
 
 ];

@@ -18,7 +18,8 @@ Three things need one home: parsing a rate string such as `"12.50"` without floa
 format, and the exact nine-decimal string used to reconcile with `cost_usd`. The frontend receives
 ready-made strings and does no money arithmetic.
 
-**Markup is stored in basis points (`12500`) and copied onto every generation.**
+**The markup is stored as a price multiplier in basis points (`12500` = ×1.25) and copied onto every
+generation.**
 Changing the markup later must not rewrite history. If a charge is not a whole nanodollar it is
 rounded up, in the operator's favour. With today's rates there is never a remainder.
 
@@ -52,8 +53,27 @@ Rates are fixed when a generation is created, so the current pricing must not be
 
 **One action applies provider state, used by the create response, webhooks and polling.**
 It runs in a transaction with a row lock, only moves the status forward, and never leaves a final
-status. Applying the same state twice changes nothing, which is what makes "never recorded twice"
-hold even without event de-duplication.
+status reported by the provider. Applying the same state twice changes nothing, which is what makes
+"never recorded twice" hold even without event de-duplication.
+
+**Only the provider's word is final. A failure we decide ourselves is provisional.**
+If the create response is lost, we may mark a generation failed that Pixelforge accepted, ran and
+billed. Leaving it failed would hide a real provider cost and the report would never reconcile. So a
+local failure is replaced by any state the provider later reports. Cost: in that rare case a user
+sees "failed" turn into "succeeded" with a charge.
+
+**An accepted generation is never failed by our own timeout.**
+For the same reason: a local "failed" on an accepted generation is a provider cost we might never
+record. It is polled until the provider gives a final status — every minute for the first 10
+minutes, every 10 minutes after.
+
+**A user charge above the shown maximum is recorded as is.**
+It can happen if rates change between the estimate and the provider accepting the generation.
+Capping it would break "provider cost × markup"; the operator report shows such generations instead.
+
+**A user may have at most 3 unfinished generations.**
+The provider's 3 slots and 500 generations a day are shared by the whole app; without a per-user
+limit one user blocks everyone.
 
 **When the provider's three concurrency slots are taken, the generation waits in our queue.**
 The limit is shared by all users of the app, so it is a normal situation, not an error. The job
@@ -112,6 +132,13 @@ throttling. The balancer's addresses are not fixed, so they cannot be listed. Co
 could reach the container directly could spoof its IP; on Render the container is reachable only
 through the balancer.
 
-**Web server, queue worker and scheduler share one container.**
-Render's free tier has no background workers. The start script restarts the worker in a loop. On a
+**Web server, two queue workers and scheduler share one container.**
+Render's free tier has no background workers. The start script restarts each worker in a loop. On a
 paid plan these become separate services with no code change.
+
+**Sends and webhook results run on separate queues and workers.**
+A worker runs one job at a time, and a send to Pixelforge can take up to 10 seconds when it is
+slow; results that have already arrived must not wait behind a burst of sends. Polling is a
+scheduled command run by the scheduler's own process, not a queued job, for the same reason.
+Cost: a second PHP process in a 512 MB container. If it does not fit, one worker taking
+`webhooks,submissions` in that order is a one-line fallback.
