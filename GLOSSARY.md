@@ -32,6 +32,10 @@ _Avoid_: Pending, unsent
 A generation the provider has acknowledged and given its own identifier.
 _Avoid_: Created, submitted
 
+**History**:
+A user's own generations, newest first.
+_Avoid_: Feed, gallery, list
+
 **Local failure**:
 A failure decided by this app before the provider accepted the generation. It is provisional: any state reported by the provider for that generation replaces it.
 _Avoid_: Timeout, internal failure

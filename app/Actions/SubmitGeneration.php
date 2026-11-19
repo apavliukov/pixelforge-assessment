@@ -11,8 +11,6 @@ use App\Exceptions\TooManyUnfinishedGenerationsException;
 use App\Jobs\SubmitGenerationJob;
 use App\Models\Generation;
 use App\Models\User;
-use App\Pricing\PriceCalculator;
-use App\Pricing\PricingCatalog;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -28,10 +26,7 @@ final readonly class SubmitGeneration
      */
     public const int MAX_UNFINISHED_PER_USER = 3;
 
-    public function __construct(
-        private PricingCatalog $catalog,
-        private PriceCalculator $calculator,
-    ) {}
+    public function __construct(private EstimateGeneration $estimateGeneration) {}
 
     /**
      * @throws PricingUnavailableException when no recent pricing can be obtained
@@ -41,13 +36,11 @@ final readonly class SubmitGeneration
     {
         $priceMultiplierBasisPoints = (int) config('pricing.price_multiplier_basis_points');
 
-        $estimate = $this->calculator->estimate(
+        $estimate = ($this->estimateGeneration)(
             prompt: $input->prompt,
             size: $input->size,
             quality: $input->quality,
             referenceImageCount: count($input->referenceImages),
-            pricing: $this->catalog->current(),
-            priceMultiplierBasisPoints: $priceMultiplierBasisPoints,
         );
 
         return DB::transaction(function () use ($input, $estimate, $priceMultiplierBasisPoints): Generation {

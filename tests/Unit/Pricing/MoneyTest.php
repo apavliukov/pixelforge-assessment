@@ -56,3 +56,10 @@ it('displays an amount with four decimals, rounding up', function (int $nano, st
     'whole dollars' => [12_000_000_000, '$12.0000'],
     'zero' => [0, '$0.00'],
 ]);
+
+it('gives the displayed and the exact amount together', function (int $nano, array $display): void {
+    expect(Money::fromNano($nano)->toDisplay())->toBe($display);
+})->with([
+    'sub-cent remainder' => [467_343_750, ['formatted' => '$0.4674', 'exact' => '0.467343750']],
+    'zero' => [0, ['formatted' => '$0.00', 'exact' => '0.000000000']],
+]);

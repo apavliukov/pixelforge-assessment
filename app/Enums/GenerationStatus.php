@@ -16,6 +16,20 @@ enum GenerationStatus: string
     case Succeeded = 'succeeded';
     case Failed = 'failed';
 
+    /**
+     * The status in the user's words.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Waiting => 'Waiting to start',
+            self::Queued => 'Queued',
+            self::Processing => 'Generating',
+            self::Succeeded => 'Done',
+            self::Failed => 'Failed',
+        };
+    }
+
     public function isFinal(): bool
     {
         return $this === self::Succeeded || $this === self::Failed;

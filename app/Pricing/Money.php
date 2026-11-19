@@ -73,6 +73,19 @@ final readonly class Money
         return sprintf('$%d.%04d', intdiv($tenThousandths, 10_000), $tenThousandths % 10_000);
     }
 
+    /**
+     * The pair the browser shows: the rounded amount, and the exact one for a tooltip.
+     *
+     * @return array{formatted: string, exact: string}
+     */
+    public function toDisplay(): array
+    {
+        return [
+            'formatted' => $this->format(),
+            'exact' => $this->toDecimalString(),
+        ];
+    }
+
     public function isZero(): bool
     {
         return $this->nano === 0;

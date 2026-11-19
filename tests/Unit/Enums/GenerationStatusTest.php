@@ -27,3 +27,9 @@ it('treats only succeeded and failed as final', function (): void {
 
     expect($final)->toBe([GenerationStatus::Succeeded, GenerationStatus::Failed]);
 });
+
+it('names each status in the user\'s words', function (): void {
+    $labels = array_map(static fn (GenerationStatus $status): string => $status->label(), GenerationStatus::cases());
+
+    expect($labels)->toBe(['Waiting to start', 'Queued', 'Generating', 'Done', 'Failed']);
+});
