@@ -44,6 +44,14 @@ final readonly class Money
         return new self($this->nano + $other->nano);
     }
 
+    /**
+     * @throws InvalidArgumentException when the other amount is larger: money is never negative
+     */
+    public function minus(self $other): self
+    {
+        return self::fromNano($this->nano - $other->nano);
+    }
+
     public function times(int $multiplier): self
     {
         return self::fromNano($this->nano * $multiplier);

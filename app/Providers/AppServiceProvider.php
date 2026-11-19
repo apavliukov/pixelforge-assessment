@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -27,6 +29,7 @@ final class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->defineGates();
         $this->registerDevCommands();
     }
 
@@ -49,6 +52,15 @@ final class AppServiceProvider extends ServiceProvider
         if ($tunnelCommand = config('app.dev_tunnel_command')) {
             DevCommands::register($tunnelCommand, 'tunnel');
         }
+    }
+
+    /**
+     * Operators are the users whose ids are listed in the environment. This gate is the only
+     * place that knows it.
+     */
+    private function defineGates(): void
+    {
+        Gate::define('viewOperatorReport', static fn (User $user): bool => in_array($user->id, (array) config('app.operator_user_ids'), true));
     }
 
     /**

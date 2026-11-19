@@ -10,6 +10,7 @@ use App\Dto\Pixelforge\TokenUsage;
 use App\Dto\Pricing\PriceEstimate;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
+use InvalidArgumentException;
 
 final readonly class PriceCalculator
 {
@@ -26,8 +27,16 @@ final readonly class PriceCalculator
             ->plus($rates->reasoning->times($usage->reasoning));
     }
 
+    /**
+     * @throws InvalidArgumentException when the multiplier is below ×1: a user charge under its
+     *                                  provider cost would be a loss on every generation
+     */
     public function userCharge(Money $providerCost, int $priceMultiplierBasisPoints): Money
     {
+        if ($priceMultiplierBasisPoints < 10_000) {
+            throw new InvalidArgumentException("The price multiplier must be at least 10000 basis points, got {$priceMultiplierBasisPoints}.");
+        }
+
         return $providerCost->applyBasisPoints($priceMultiplierBasisPoints);
     }
 

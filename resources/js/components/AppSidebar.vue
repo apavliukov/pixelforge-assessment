@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { FolderGit2, Images } from '@lucide/vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { FolderGit2, Images, ReceiptText } from '@lucide/vue';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -15,15 +16,27 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { index as generations } from '@/routes/generations';
+import { show as operatorReport } from '@/routes/operatorReport';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const page = usePage();
+
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Generations',
         href: generations(),
         icon: Images,
     },
-];
+    ...(page.props.auth.isOperator
+        ? [
+              {
+                  title: 'Operator report',
+                  href: operatorReport(),
+                  icon: ReceiptText,
+              },
+          ]
+        : []),
+]);
 
 const footerNavItems: NavItem[] = [
     {

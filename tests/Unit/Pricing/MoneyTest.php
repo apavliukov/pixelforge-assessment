@@ -63,3 +63,14 @@ it('gives the displayed and the exact amount together', function (int $nano, arr
     'sub-cent remainder' => [467_343_750, ['formatted' => '$0.4674', 'exact' => '0.467343750']],
     'zero' => [0, ['formatted' => '$0.00', 'exact' => '0.000000000']],
 ]);
+
+it('subtracts an amount', function (int $from, int $subtracted, int $left): void {
+    expect(Money::fromNano($from)->minus(Money::fromNano($subtracted))->nano)->toBe($left);
+})->with([
+    'profit of the documented example' => [467_343_750, 373_875_000, 93_468_750],
+    'equal amounts' => [373_875_000, 373_875_000, 0],
+]);
+
+it('refuses a subtraction that would go below zero', function (): void {
+    Money::fromNano(1)->minus(Money::fromNano(2));
+})->throws(InvalidArgumentException::class);

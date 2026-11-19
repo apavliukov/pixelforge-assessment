@@ -71,6 +71,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Operator User IDs
+    |--------------------------------------------------------------------------
+    |
+    | The users with these ids are operators: they may open the operator
+    | report. A comma-separated list of ids of accounts that already exist;
+    | anything that is not a whole number is ignored.
+    |
+    */
+
+    'operator_user_ids' => array_map(intval(...), array_values(array_filter(
+        array_map(trim(...), explode(',', (string) env('OPERATOR_USER_IDS', ''))),
+        ctype_digit(...),
+    ))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

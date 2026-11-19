@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\GenerationEstimatesController;
 use App\Http\Controllers\GenerationsController;
+use App\Http\Controllers\OperatorReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/generations')->name('home');
@@ -15,6 +16,10 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('generations/estimate', [GenerationEstimatesController::class, 'store'])
         ->middleware('throttle:120,1')
         ->name('generationEstimates.store');
+
+    Route::get('operator/report', [OperatorReportController::class, 'show'])
+        ->can('viewOperatorReport')
+        ->name('operatorReport.show');
 });
 
 require __DIR__.'/settings.php';

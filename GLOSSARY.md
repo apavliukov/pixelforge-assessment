@@ -73,3 +73,15 @@ _Avoid_: Price, cost, bill
 **Estimate**:
 The range of possible user charges shown before submission. Its maximum is what the user agrees to.
 _Avoid_: Quote, preview price
+
+**Profit**:
+What the operator keeps from a generation: user charge minus provider cost.
+_Avoid_: Margin, revenue, earnings
+
+**Operator report**:
+Per UTC day and user: the succeeded generations finished that day, their user charges, provider costs and profit.
+_Avoid_: Admin report, dashboard, statistics
+
+**Reconciliation**:
+Comparing a day's provider cost as we recorded it with what the provider reports for that day.
+_Avoid_: Audit, sync, verification

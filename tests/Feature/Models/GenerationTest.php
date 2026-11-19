@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Enums\GenerationStatus;
 use App\Models\Generation;
 use App\Pricing\Money;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 it('stores money columns as exact nanodollars', function (): void {
     $generation = Generation::factory()->succeeded()->create();
@@ -39,3 +41,11 @@ it('leaves costs unknown until the generation is finished', function (): void {
 it('refuses to store a plain number in a money column', function (): void {
     Generation::factory()->make(['estimate_max' => 21_831_250]);
 })->throws(InvalidArgumentException::class, 'estimate_max');
+
+it('refuses to delete a user who has a generation', function (): void {
+    $generation = Generation::factory()->create();
+
+    // Inside a transaction of its own, so the refused statement does not abort the test's.
+    expect(fn () => DB::transaction(fn () => $generation->user->delete()))->toThrow(QueryException::class)
+        ->and($generation->fresh())->not->toBeNull();
+});

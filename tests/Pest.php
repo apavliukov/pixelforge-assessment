@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Dto\Pixelforge\GenerationData;
 use App\Models\Generation;
+use App\Pricing\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -21,6 +23,10 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function (): void {
+        // No test may reach the provider, whether or not its file remembers to say so.
+        Http::preventStrayRequests();
+    })
     ->in('Feature');
 
 /*
@@ -136,4 +142,46 @@ function providerStateFor(Generation $generation, string $status, array $overrid
         'metadata' => ['local_id' => $generation->id],
         ...$overrides,
     ]));
+}
+
+/**
+ * One row of the provider's usage report in the documented shape. The token counts are not
+ * read by this app.
+ *
+ * @return array<string, mixed>
+ */
+function providerUsageFigures(int $generations, string $cost): array
+{
+    return [
+        'generations' => $generations,
+        'input_text_tokens' => 0,
+        'input_image_tokens' => 0,
+        'output_tokens' => 0,
+        'reasoning_tokens' => 0,
+        'cost_usd' => $cost,
+    ];
+}
+
+/**
+ * Fakes the provider's usage report: `[date => [generations, cost]]`, with the total they add up to.
+ *
+ * @param  array<string, array{int, string}>  $days
+ */
+function fakeProviderUsage(array $days): void
+{
+    $rows = [];
+    $generations = 0;
+    $cost = Money::fromNano(0);
+
+    foreach ($days as $date => [$dayGenerations, $dayCost]) {
+        $rows[] = providerUsageFigures($dayGenerations, $dayCost) + ['date' => $date];
+        $generations += $dayGenerations;
+        $cost = $cost->plus(Money::fromDecimalString($dayCost));
+    }
+
+    Http::fake(['pixelforge.promptedit.dev/v1/usage*' => Http::response([
+        'object' => 'usage',
+        'data' => $rows,
+        'total' => providerUsageFigures($generations, $cost->toDecimalString()),
+    ])]);
 }

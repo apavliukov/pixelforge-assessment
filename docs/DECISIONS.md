@@ -108,9 +108,16 @@ The assessment allows it. Cost: images disappear 24 hours after completion.
 **Open registration, no email verification.**
 Reviewers should get in without friction.
 
-**The operator report is guarded by a gate backed by a list of operator emails in the environment.**
+**The operator report is guarded by a gate backed by a list of operator user ids in the environment.**
 Authorization goes through a gate, where it belongs; only the source of truth is simple. Moving to
-roles later means changing one gate body. Rejected: an `is_admin` column, and a roles package.
+roles later means changing one gate body. Ids, not emails: registration is open and emails are not
+verified, so whoever registered an operator's email first would become an operator. An id exists
+only once the account does. Rejected: an `is_admin` column, and a roles package.
+
+**Users cannot delete their accounts, and the database refuses to delete a user who has generations.**
+The starter kit's "Delete account" cascaded to the user's generations, which would erase provider
+costs the operator has already paid and leave the report unable to reconcile for good. Rejected:
+soft-deleting users, which is a feature of its own and not asked for.
 
 ## Infrastructure
 

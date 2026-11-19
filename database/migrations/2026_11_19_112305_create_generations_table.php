@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('generations', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // A user with generations cannot be deleted: the provider costs they carry must stay.
+            $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->string('provider_id')->nullable()->unique();
 
             $table->text('prompt');
@@ -44,6 +45,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['user_id', 'created_at']);
+            $table->index('completed_at');
         });
     }
 

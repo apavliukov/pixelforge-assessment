@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Clients;
 
+use App\Dto\OperatorReport\ReportPeriod;
 use App\Dto\Pixelforge\GenerationData;
 use App\Dto\Pixelforge\PricingData;
+use App\Dto\Pixelforge\UsageReportData;
 use App\Models\Generation;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -64,6 +66,23 @@ final readonly class PixelforgeClient
         $response = $this->request()->get("generations/{$providerId}")->throw()->json() ?? [];
 
         return GenerationData::fromArray($response);
+    }
+
+    /**
+     * What the provider billed this API key for, per UTC day of the period.
+     *
+     * @throws ConnectionException when Pixelforge cannot be reached
+     * @throws RequestException when Pixelforge answers with an error status
+     * @throws UnexpectedValueException when the response is not a valid usage report
+     */
+    public function usage(ReportPeriod $period): UsageReportData
+    {
+        $response = $this->request()
+            ->get('usage', ['start_date' => $period->startDate(), 'end_date' => $period->endDate()])
+            ->throw()
+            ->json() ?? [];
+
+        return UsageReportData::fromArray($response);
     }
 
     private function request(): PendingRequest

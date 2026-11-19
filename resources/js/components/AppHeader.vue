@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Folder, Images, Menu, Search } from '@lucide/vue';
+import { Folder, Images, Menu, ReceiptText, Search } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -36,6 +36,7 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { index as generations } from '@/routes/generations';
+import { show as operatorReport } from '@/routes/operatorReport';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -53,13 +54,22 @@ const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
 const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
-const mainNavItems: NavItem[] = [
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Generations',
         href: generations(),
         icon: Images,
     },
-];
+    ...(auth.value.isOperator
+        ? [
+              {
+                  title: 'Operator report',
+                  href: operatorReport(),
+                  icon: ReceiptText,
+              },
+          ]
+        : []),
+]);
 
 const rightNavItems: NavItem[] = [
     {

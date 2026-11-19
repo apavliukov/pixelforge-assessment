@@ -64,6 +64,7 @@ Environment variables the host must provide:
 | `DB_CONNECTION`             | `pgsql`                                     |
 | `DB_URL`                    | Postgres connection string                  |
 | `LOG_CHANNEL`               | `stderr`                                    |
+| `OPERATOR_USER_IDS`         | ids of the users who may open the report    |
 | `PIXELFORGE_API_KEY`        | API key                                     |
 | `PIXELFORGE_WEBHOOK_SECRET` | `whsec_…` signing secret                    |
 
@@ -96,3 +97,12 @@ users typing in the form during a long outage could occupy every worker.
 
 The fix is to cache the failure for 30–60 seconds, so that during an outage the page answers
 "pricing unavailable" at once and only the scheduled job keeps asking Pixelforge.
+
+### Say which generations a mismatch is about
+
+The operator report reconciles provider costs per day: it shows that a day differs and by how much,
+not which generation is missing or extra. Finding it means comparing our rows with the provider's
+list of generations by hand.
+
+The fix is a drill-down for a day that differs: fetch the provider's generations completed that day
+and list the ones we have no succeeded row for, and the reverse.
