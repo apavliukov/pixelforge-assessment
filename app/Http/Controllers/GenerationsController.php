@@ -14,6 +14,7 @@ use App\Http\Requests\Generations\StoreGenerationRequest;
 use App\Http\Resources\GenerationResource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -37,7 +38,7 @@ final class GenerationsController extends Controller
         $generations = $request->user()->generations();
 
         return Inertia::render('generations/Index', [
-            'generations' => fn () => GenerationResource::collection($generations->clone()->latest()->paginate(self::PER_PAGE)),
+            'generations' => fn (): AnonymousResourceCollection => GenerationResource::collection($generations->clone()->latest()->paginate(self::PER_PAGE)),
             'unfinishedCount' => fn (): int => $generations->clone()->unfinished()->count(),
             'maxUnfinished' => SubmitGeneration::MAX_UNFINISHED_PER_USER,
             'limits' => [

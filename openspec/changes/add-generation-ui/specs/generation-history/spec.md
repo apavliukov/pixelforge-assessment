@@ -28,8 +28,8 @@ page. Another user's generations SHALL never be shown.
 
 ### Requirement: Each generation shows its request, status and time
 
-The system SHALL show for each generation its prompt, size, quality, number of reference images, the
-time it was submitted, and its status in plain words: `Waiting to start` for waiting, `Queued`,
+The system SHALL show for each generation its prompt, size, quality, the number of reference images
+when there are any, the time it was submitted, and its status in plain words: `Waiting to start` for waiting, `Queued`,
 `Generating` for processing, `Done` for succeeded and `Failed`. The submission time SHALL be given
 as an absolute moment that the browser displays in the user's own time zone.
 
@@ -122,8 +122,9 @@ for an expired image, and SHALL fall back to the same placeholder if an image fa
 ### Requirement: History stays current while generations are unfinished
 
 The page SHALL refresh the history and the count of unfinished generations every few seconds while
-any generation on the current page is unfinished, without reloading the rest of the page or
-disturbing the form, and SHALL stop refreshing once all of them are final.
+the user has any unfinished generation, on whichever page of the history it is listed, without
+reloading the rest of the page or disturbing the form, and SHALL stop refreshing once all of them
+are final.
 
 #### Scenario: A refresh carries only the history
 

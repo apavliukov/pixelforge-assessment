@@ -58,11 +58,16 @@ The first estimate comes as a page prop, so the price is visible without a round
 refresh it is not recalculated (`only: ['generations', 'unfinishedCount']`; the prop is a closure).
 
 Response: `{ "min": Amount, "max": Amount }` with `Amount = { "formatted": "$0.4674", "exact": "0.467343750" }`.
-`Money` gains one method returning that pair; the resource uses it too.
+`Money::toDisplay()` returns that pair and `PriceEstimate::toDisplay()` the two of them; the
+resource uses the first for its amounts.
 
 Failures: `422` with field errors (standard); `503` with a message when pricing is unavailable;
-`429` from the throttle. The form shows a dash for the price on `422`, the pricing banner on `503`,
-and keeps the last estimate on `429` or a network error.
+`429` from the throttle. The form shows a dash for the estimate on `422` and the pricing banner on
+`503`. On `429` or a network error it also shows a dash, says the estimate could not be updated and
+disables the button: the last estimate was for other values, and showing it would promise a maximum
+the submission may exceed. In the last two states the form asks again every 10 seconds, because
+nothing else would. A refused submission also asks for an estimate, which is how the form learns
+that the refusal was about pricing.
 
 Alternative considered: estimate in the browser. Rejected in `docs/DECISIONS.md` — two
 implementations of the price, and JavaScript counts characters differently.
@@ -91,7 +96,7 @@ stays authoritative: another tab can submit in between.
 
 ### Texts live on the backend
 
-`GenerationResource` returns `status`, `status_label`, `failure_reason` (null unless failed),
+`GenerationResource` returns `id`, `status`, `status_label`, `is_final`, `failure_reason` (null unless failed),
 `estimate` (`min`, `max`), `charge` (null while unfinished), `image_url`, `image_expired`,
 `submitted_at` (ISO 8601, formatted in the browser with `Intl.DateTimeFormat`), and the request
 fields. It never includes `provider_cost`, the multiplier, `error_message`, `provider_id` or `rates`.
@@ -106,12 +111,14 @@ The page can outlive the link, so `<img>` also switches to the placeholder on `@
 ### History refresh
 
 `usePoll(2000, { only: ['generations', 'unfinishedCount'] }, { autoStart: false })`, started and
-stopped by a watcher on "any listed generation is not final". The query is the user's 15 newest
+stopped by a watcher on `unfinishedCount > 0`. The count covers every page, so the form's limit
+stays current on a page of the history where everything listed is final. The query is the user's 15 newest
 rows by `(user_id, created_at)`; the implementation checks that an index covers it.
 
 Submitting uses `useForm().post()` with `preserveState` and `preserveScroll`, so the redirect back
 to the same component keeps the form's values (the agreed behaviour: users iterate on a prompt).
-The redirect drops any `page` query, which puts the new generation in view.
+The redirect drops any `page` query, and on success the page scrolls to the history, which puts
+the new generation in view on a narrow screen where the history is below the form.
 
 ### Removing the starter pages
 

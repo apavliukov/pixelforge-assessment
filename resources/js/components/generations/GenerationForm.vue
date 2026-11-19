@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useForm, useHttp } from '@inertiajs/vue3';
-import { watchDebounced } from '@vueuse/core';
+import { useIntervalFn, watchDebounced } from '@vueuse/core';
 import { Plus, X } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { store as estimateRoute } from '@/actions/App/Http/Controllers/GenerationEstimatesController';
 import { store as submitRoute } from '@/actions/App/Http/Controllers/GenerationsController';
 import InputError from '@/components/InputError.vue';
@@ -74,8 +74,10 @@ const referenceImageCount = computed(
 const estimate = ref<Estimate | null>(props.initialEstimate);
 const pricingUnavailable = ref(props.initialEstimate === null);
 const estimateInvalid = ref(false);
+// The last answer is for other values than the form now holds, so its maximum cannot be promised.
+const estimateOutdated = ref(false);
 const shownEstimate = computed(() =>
-    estimateInvalid.value ? null : estimate.value,
+    estimateInvalid.value || estimateOutdated.value ? null : estimate.value,
 );
 
 const estimateRequest = useHttp<
@@ -93,38 +95,58 @@ const estimateRequest = useHttp<
     reference_image_count: 0,
 });
 
+function refreshEstimate(): void {
+    estimateRequest.cancel();
+    estimateRequest.prompt = form.prompt;
+    estimateRequest.size = form.size;
+    estimateRequest.quality = form.quality;
+    estimateRequest.reference_image_count = referenceImageCount.value;
+
+    estimateRequest
+        .post(estimateRoute.url(), {
+            onSuccess: (response) => {
+                estimate.value = response;
+                pricingUnavailable.value = false;
+                estimateInvalid.value = false;
+                estimateOutdated.value = false;
+            },
+            onError: () => {
+                estimateInvalid.value = true;
+                estimateOutdated.value = false;
+            },
+            onHttpException: (response) => {
+                pricingUnavailable.value = response.status === 503;
+                estimateInvalid.value = false;
+                estimateOutdated.value = response.status !== 503;
+
+                return false;
+            },
+            onNetworkError: () => {
+                estimateInvalid.value = false;
+                estimateOutdated.value = true;
+
+                return false;
+            },
+        })
+        // The callbacks above did everything; a cancelled request is followed by a newer one.
+        .catch(() => {});
+}
+
 watchDebounced(
     () => [form.prompt, form.size, form.quality, referenceImageCount.value],
-    () => {
-        estimateRequest.cancel();
-        estimateRequest.prompt = form.prompt;
-        estimateRequest.size = form.size;
-        estimateRequest.quality = form.quality;
-        estimateRequest.reference_image_count = referenceImageCount.value;
-
-        estimateRequest
-            .post(estimateRoute.url(), {
-                onSuccess: (response) => {
-                    estimate.value = response;
-                    pricingUnavailable.value = false;
-                    estimateInvalid.value = false;
-                },
-                onError: () => {
-                    estimateInvalid.value = true;
-                },
-                onHttpException: (response) => {
-                    if (response.status === 503) {
-                        pricingUnavailable.value = true;
-                    }
-
-                    return false;
-                },
-                onNetworkError: () => false,
-            })
-            // A failed or cancelled request keeps the last estimate; the callbacks above did the rest.
-            .catch(() => {});
-    },
+    refreshEstimate,
     { debounce: 300 },
+);
+
+// Nothing else would ask again, and the button is disabled until there is a current estimate.
+const estimateRetry = useIntervalFn(refreshEstimate, 10_000, {
+    immediate: false,
+});
+
+watch(
+    () => pricingUnavailable.value || estimateOutdated.value,
+    (retrying) => (retrying ? estimateRetry.resume() : estimateRetry.pause()),
+    { immediate: true },
 );
 
 const limitReached = computed(
@@ -132,7 +154,17 @@ const limitReached = computed(
 );
 
 const canSubmit = computed(
-    () => !form.processing && !limitReached.value && !pricingUnavailable.value,
+    () =>
+        !form.processing &&
+        !limitReached.value &&
+        !pricingUnavailable.value &&
+        !estimateOutdated.value,
+);
+
+// A refusal for the limit stops being true as soon as a generation finishes.
+watch(
+    () => props.unfinishedCount,
+    () => form.clearErrors('generation' as never),
 );
 
 function removeReferenceImage(position: number): void {
@@ -154,6 +186,12 @@ function submit(): void {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => emit('submitted'),
+        // A refusal may mean pricing has just become unavailable; asking for an estimate finds out.
+        onError: () => {
+            if (refusal.value) {
+                refreshEstimate();
+            }
+        },
     });
 }
 </script>
@@ -276,7 +314,7 @@ function submit(): void {
             </Button>
             <p class="text-xs text-muted-foreground">
                 Up to {{ limits.referenceImages }} image URLs. Each one adds to
-                the price.
+                the estimate.
             </p>
         </div>
 
@@ -290,7 +328,7 @@ function submit(): void {
             />
             <template v-else>
                 <p class="text-sm">
-                    <span class="text-muted-foreground">Estimated cost</span>
+                    <span class="text-muted-foreground">Estimated charge</span>
                     <span
                         class="ml-1 font-semibold tabular-nums transition-opacity"
                         :class="{ 'opacity-50': estimateRequest.processing }"
@@ -307,8 +345,17 @@ function submit(): void {
                         <template v-else>—</template>
                     </span>
                 </p>
-                <p v-if="shownEstimate" class="text-xs text-muted-foreground">
-                    The exact price is known after generation and will not
+                <p
+                    v-if="estimateOutdated"
+                    class="text-xs text-muted-foreground"
+                >
+                    The estimate could not be updated. Trying again…
+                </p>
+                <p
+                    v-else-if="shownEstimate"
+                    class="text-xs text-muted-foreground"
+                >
+                    The exact charge is known after generation and will not
                     exceed {{ shownEstimate.max.formatted }}. Failed generations
                     are free.
                 </p>
@@ -331,7 +378,8 @@ function submit(): void {
                 You have {{ unfinishedCount }} generations in progress. Wait for
                 one to finish.
             </p>
-            <InputError v-else :message="refusal" />
+            <!-- The pricing refusal is already shown in place of the estimate. -->
+            <InputError v-else-if="!pricingUnavailable" :message="refusal" />
         </div>
     </form>
 </template>

@@ -43,9 +43,8 @@ function showHistory(): void {
     history.value?.scrollIntoView({ behavior: 'smooth' });
 }
 
-const hasUnfinished = computed(() =>
-    props.generations.data.some((generation) => !generation.is_final),
-);
+// Counted across all pages: the form's limit depends on generations that may not be listed here.
+const hasUnfinished = computed(() => props.unfinishedCount > 0);
 
 const { start, stop } = usePoll(
     2000,
@@ -68,7 +67,7 @@ watch(hasUnfinished, (unfinished) => (unfinished ? start() : stop()), {
             <Heading
                 variant="small"
                 title="New generation"
-                description="Describe the image and see what it will cost"
+                description="Describe the image and see the estimated charge"
             />
 
             <GenerationForm

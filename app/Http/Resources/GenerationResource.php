@@ -18,6 +18,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class GenerationResource extends JsonResource
 {
+    /** The provider's own code for a generation it accepted and could not finish. */
+    private const string PROVIDER_GENERATION_FAILED = 'generation_failed';
+
     private const string NOT_CHARGED = 'You were not charged.';
 
     /**
@@ -64,7 +67,7 @@ final class GenerationResource extends JsonResource
             FailureCode::ProviderUnavailable->value => 'The image service was overloaded. Try again in a few minutes.',
             FailureCode::DailyLimitExceeded->value => "Today's generation limit has been reached. Try again tomorrow.",
             FailureCode::WaitTimeout->value => 'The image service was busy for too long. Try again.',
-            'generation_failed' => 'The image could not be generated for this prompt. Try again or change the prompt.',
+            self::PROVIDER_GENERATION_FAILED => 'The image could not be generated for this prompt. Try again or change the prompt.',
             default => 'Something went wrong on our side.',
         };
 

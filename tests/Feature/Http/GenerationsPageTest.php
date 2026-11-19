@@ -31,7 +31,7 @@ it('sends guests to sign in', function (): void {
 });
 
 it('leads from the site root to the generation page', function (): void {
-    $this->get('/')->assertRedirect('/generations');
+    $this->get('/')->assertRedirect(route('generations.index'));
 });
 
 it('carries no estimate when pricing is unavailable', function (): void {
@@ -109,7 +109,7 @@ describe('history', function (): void {
             ->and(listedGenerations($user, page: 2))->toHaveCount(1);
     });
 
-    it('shows the request, the status in plain words and the submission time', function (): void {
+    it('shows the prompt, the parameters, the status in plain words and the submission time', function (): void {
         $this->freezeSecond();
         $user = User::factory()->create();
         Generation::factory()->for($user)->processing()->create([
