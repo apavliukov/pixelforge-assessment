@@ -11,8 +11,7 @@ it('reads a queued generation', function (): void {
     expect($generation->id)->toBe('gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K')
         ->and($generation->status)->toBe(GenerationStatus::Queued)
         ->and($generation->localId)->toBe('019a4f2c-8d3e-7b10-9c55-2d8f1b4e7a10')
-        ->and($generation->rates->output->nano)->toBe(40_000)
-        ->and($generation->ratesPayload)->toBe(['input_text_tokens' => '5.00', 'input_image_tokens' => '10.00', 'output_tokens' => '40.00', 'reasoning_tokens' => '12.50'])
+        ->and($generation->rates)->toBe(['input_text_tokens' => '5.00', 'input_image_tokens' => '10.00', 'output_tokens' => '40.00', 'reasoning_tokens' => '12.50'])
         ->and($generation->usage)->toBeNull()
         ->and($generation->completedAt)->toBeNull();
 });
@@ -52,5 +51,6 @@ it('rejects a generation it could not apply safely', function (string $status, a
     'our own waiting status' => ['waiting', []],
     'no identifier' => ['queued', ['id' => null]],
     'no rates' => ['queued', ['rates' => null]],
+    'malformed rate' => ['queued', ['rates' => ['input_text_tokens' => '5.00', 'input_image_tokens' => '10.00', 'output_tokens' => '40,00', 'reasoning_tokens' => '12.50']]],
     'malformed timestamp' => ['succeeded', ['completed_at' => 'yesterday-ish']],
 ])->throws(UnexpectedValueException::class);

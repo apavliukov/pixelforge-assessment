@@ -137,15 +137,16 @@ describe('money', function (): void {
             ->and($generation->output_tokens)->toBe(6_450);
     });
 
-    it('uses the rates on the generation, not the published ones', function (): void {
-        $pricing = publishedPricing();
-        $pricing['rates']['output_tokens'] = '50.00';
-        Http::fake(['pixelforge.promptedit.dev/v1/pricing' => Http::response($pricing)]);
+    it('uses the rates recorded on the generation, not the ones in a later report', function (): void {
         $generation = Generation::factory()->processing()->create();
 
-        applyState(providerStateFor($generation, 'succeeded'));
+        applyState(providerStateFor($generation, 'succeeded', [
+            'rates' => [...GenerationFactory::RATES, 'output_tokens' => '50.00'],
+        ]));
 
-        expect($generation->refresh()->provider_cost)->toEqual(Money::fromNano(305_510_000));
+        $generation->refresh();
+        expect($generation->provider_cost)->toEqual(Money::fromNano(305_510_000))
+            ->and($generation->rates['output_tokens'])->toBe('40.00');
     });
 
     it('records the full charge when it exceeds the shown maximum', function (): void {

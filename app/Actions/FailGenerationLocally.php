@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 final readonly class FailGenerationLocally
 {
     /**
+     * @param  Generation  $generation  failed only while it is waiting
+     * @param  FailureCode  $code  why it failed
      * @param  string|null  $message  what went wrong, for the operator
      */
     public function __invoke(Generation $generation, FailureCode $code, ?string $message = null): Generation

@@ -28,23 +28,26 @@ the queue workers and the scheduler in the same container as the web server; Pix
 
 **Layout.**
 
-| Path                                                       | Contents                                                       |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| `app/Models/Generation.php`, `WebhookEvent.php`            | models, with factories                                         |
-| `app/Enums/GenerationStatus.php`                           | five statuses, `isFinal()`, `isAheadOf()`; the rank is private |
-| `app/Enums/FailureCode.php`                                | codes this app assigns itself                                  |
-| `app/Casts/MoneyCast.php`                                  | `bigint` column ↔ `Money`                                      |
-| `app/Dto/Pixelforge/GenerationData.php`                    | the provider's generation object, validated in `fromArray`     |
-| `app/Dto/Generations/SubmitGenerationInput.php`            | user, prompt, size, quality, reference image URLs              |
-| `app/Actions/SubmitGeneration.php`                         | creates the waiting generation and queues the send             |
-| `app/Actions/ApplyProviderState.php`                       | the single place provider state is applied                     |
-| `app/Actions/FailGenerationLocally.php`                    | records a local failure, only on a waiting generation          |
-| `app/Jobs/SubmitGenerationJob.php`                         | one send attempt and the decision what to do with the answer   |
-| `app/Jobs/ApplyWebhookEventJob.php`                        | applies one stored event                                       |
-| `app/Console/Commands/PollGenerationsCommand.php`          | `generations:poll`                                             |
-| `app/Http/Controllers/PixelforgeWebhookController.php`     | stores the event and queues the job                            |
-| `app/Http/Middleware/VerifyPixelforgeSignature.php`        | signature and timestamp check on the raw body                  |
-| `app/Exceptions/TooManyUnfinishedGenerationsException.php` | thrown by `SubmitGeneration`                                   |
+| Path                                                       | Contents                                                        |
+| ---------------------------------------------------------- | --------------------------------------------------------------- |
+| `app/Models/Generation.php`, `WebhookEvent.php`            | models, with factories                                          |
+| `app/Enums/GenerationStatus.php`                           | five statuses, `isFinal()`, `isAheadOf()`; the rank is private  |
+| `app/Enums/FailureCode.php`                                | codes this app assigns itself                                   |
+| `app/Casts/MoneyCast.php`                                  | `bigint` column ↔ `Money`                                       |
+| `app/Dto/Pixelforge/GenerationData.php`                    | the provider's generation object, validated in `fromArray`      |
+| `app/Dto/Generations/SubmitGenerationInput.php`            | user, prompt, size, quality, reference image URLs               |
+| `app/Actions/SubmitGeneration.php`                         | creates the waiting generation and queues the send              |
+| `app/Actions/ApplyProviderState.php`                       | the single place provider state is applied                      |
+| `app/Actions/FailGenerationLocally.php`                    | records a local failure, only on a waiting generation           |
+| `app/Actions/SendGeneration.php`                           | one send attempt and the decision what the answer means         |
+| `app/Actions/PollDueGenerations.php`                       | one polling run                                                 |
+| `app/Dto/Generations/SendRetry.php`, `PollingResult.php`   | what a send attempt and a polling run report back               |
+| `app/Jobs/SubmitGenerationJob.php`                         | runs `SendGeneration`, dispatches the retry it asks for         |
+| `app/Jobs/ApplyWebhookEventJob.php`                        | applies one stored event                                        |
+| `app/Console/Commands/PollGenerationsCommand.php`          | `generations:poll`: runs `PollDueGenerations`, prints a summary |
+| `app/Http/Controllers/PixelforgeWebhookController.php`     | stores the event and queues the job                             |
+| `app/Http/Middleware/VerifyPixelforgeSignature.php`        | signature and timestamp check on the raw body                   |
+| `app/Exceptions/TooManyUnfinishedGenerationsException.php` | thrown by `SubmitGeneration`                                    |
 
 `app/Casts` is a new base folder (Laravel's own location for `make:cast`). _Alternative:_ four
 accessor/mutator pairs on the model — more code for the same thing.
@@ -72,29 +75,35 @@ then:
 1. Fills `provider_id` and `rates` if empty and stamps `provider_synced_at` — always.
 2. Stops unless the incoming status `isAheadOf()` the current one, or the row is a local failure (`failed` with no `provider_id` before step 1).
 3. For a local failure, clears the error and the zero costs and takes the incoming status as is.
-4. On `succeeded`: stores usage, costs via `PriceCalculator`, image URL and expiry, `completed_at`. On `failed`: stores the error, zero costs, `completed_at`.
+4. On `succeeded`: stores usage, costs via `PriceCalculator` at the rates recorded in step 1, image URL and expiry, `completed_at` (`Generation::markSucceeded`). On `failed`: the error, zero costs, `completed_at` (`Generation::markFailed`, shared with local failures).
 
 `GenerationData::fromArray` rejects a `succeeded` object without `usage` or `rates`, so step 4
 cannot record a success without money. A different final status after a provider final is logged
 and ignored. The rank lives only in the enum; the local-failure exception lives only here, because
-it is a rule about a generation, not about a status.
+it is a rule about a generation, not about a status. A report whose `metadata.local_id` points at a
+generation already linked to another provider identifier is logged and ignored: following it would
+attach one provider generation's money to another.
 
 **`SubmitGeneration` checks the limit under a lock on the user row.** Two simultaneous submissions
 by one user would otherwise both count two unfinished generations. Pricing is read before the
 transaction; the generation row and the queued job are written inside it, which is atomic because
 the queue is in the same database.
 
-**The send job re-dispatches itself instead of using `release()`.** `SubmitGenerationJob` runs with
-one try and carries its own count of temporary failures. After a `429` it dispatches a copy with the
-`Retry-After` delay (default 5 s, clamped to 1–60 s); after a `5xx` or a connection error it
-dispatches a copy with the count increased and the 2/4/8/16/32 s delay. `release()` has a single
-attempts counter, which cannot tell "waited for a slot 40 times" from "provider failed 5 times".
-The 10-minute wait limit is checked against `created_at` at the start of each attempt. An unexpected exception is caught in `handle()`, which
-records `submission_rejected` and rethrows, so the generation is not left waiting. Not the
-`failed()` hook: the queue calls it without the container, so the action could not be injected; a
-worker that dies mid-job is covered by polling's 15-minute rule instead.
+**The send decisions live in `SendGeneration`; the job only reschedules.** The action makes one
+attempt and returns `null` (accepted, failed, or nothing to do) or a `SendRetry` with a delay and a
+failure count. After a `429` the delay is `Retry-After`, 5 s when the header is missing or not a
+number (the docs give 5 s for a busy slot), at most 60 s so a bad header cannot park a send; the
+failure count is unchanged. After a `5xx` or a connection error the delay is 2/4/8/16/32 s and the
+count goes up. The 10-minute wait limit (`Generation::hasWaitedTooLong`) is checked first. An
+unexpected exception records `submission_rejected` and is rethrown, so the generation is not left
+waiting; a worker that dies mid-job is covered by polling's 15-minute rule.
 
-The client calls `->throw()`; the job reads the status, `error.code` and `Retry-After` from the
+`SubmitGenerationJob` runs with one try and dispatches a delayed copy of itself for a `SendRetry`,
+instead of `release()`: a single attempts counter cannot tell "waited for a slot 40 times" from
+"provider failed 5 times". Not the `failed()` hook for errors either: the queue calls it without
+the container, so the action could not be injected.
+
+The client calls `->throw()`; the action reads the status, `error.code` and `Retry-After` from the
 `RequestException`'s response. No exception class per provider error.
 
 **The webhook route lives in `routes/api.php`** (`POST /api/webhooks/pixelforge`), registered through
@@ -106,7 +115,8 @@ violation of a repeated `event_id` does not abort the surrounding transaction in
 returns the stored row, and `wasRecentlyCreated` tells the controller whether to dispatch.
 
 **An empty webhook secret rejects every request.** An HMAC with an empty key can be computed by
-anyone.
+anyone. A correctly signed body without an event `id` or `type` is answered `400`: it cannot be
+stored or de-duplicated.
 
 **Two queues, two worker processes.** Send jobs go to the `submissions` queue; webhook event jobs
 go to `webhooks`. Production starts one `queue:work` process per queue (the `webhooks` worker also
@@ -124,11 +134,14 @@ scheduler's own process, at once. A polling run makes up to 20 HTTP calls, so as
 hold back whichever queue it was put on. As a command it runs beside the workers and can also be
 run by hand (`generations:poll`). It is scheduled with `withoutOverlapping()`.
 
-The two selections are model scopes (`dueForPolling`, `abandonedWhileWaiting`), so the command stays a trigger. One run: fail generations waiting over 15 minutes; then take up to 20 accepted unfinished
-generations whose `provider_synced_at` is older than 1 minute (submitted within 10 minutes) or
-10 minutes (older), least recently checked first; fetch each and apply it. A failed fetch still
-stamps `provider_synced_at`, so one broken generation cannot keep the head of the list; a `429`
-ends the run. 20 requests a minute leaves 40 of the provider's 60 for sends.
+`PollDueGenerations` does the work; the selections are model scopes (`dueForPolling`,
+`abandonedWhileWaiting`) and the command only prints the `PollingResult`. One run: fail generations
+waiting over 15 minutes; then take up to 20 accepted unfinished generations whose
+`provider_synced_at` is older than 1 minute (submitted within 10 minutes) or 10 minutes (older),
+least recently checked first; fetch each and apply it, which stamps `provider_synced_at`. A failed
+fetch also stamps it, so one broken generation cannot keep the head of the list. A `429` ends the
+run without stamping the refused generation, so it is first in line next time. 20 requests a minute
+leaves 40 of the provider's 60 for sends.
 
 **Timings are class constants, not configuration.** Nothing changes them per environment.
 

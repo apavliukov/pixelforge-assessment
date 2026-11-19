@@ -18,8 +18,7 @@ final readonly class GenerationData
      * @param  string  $id  the provider's `gen_…` identifier
      * @param  GenerationStatus  $status  one of the provider's four statuses, never waiting
      * @param  string|null  $localId  our identifier, sent as `metadata.local_id`
-     * @param  TokenRates  $rates  the rates the generation is billed at
-     * @param  array<string, string>  $ratesPayload  the same rates per 1M tokens, as received
+     * @param  array<string, string>  $rates  the rates per 1M tokens the generation is billed at, as received and validated
      * @param  TokenUsage|null  $usage  set when succeeded
      * @param  string|null  $errorCode  set when failed
      * @param  string|null  $errorMessage  set when failed
@@ -31,8 +30,7 @@ final readonly class GenerationData
         public string $id,
         public GenerationStatus $status,
         public ?string $localId,
-        public TokenRates $rates,
-        public array $ratesPayload,
+        public array $rates,
         public ?TokenUsage $usage,
         public ?string $errorCode,
         public ?string $errorMessage,
@@ -60,11 +58,13 @@ final readonly class GenerationData
             throw new UnexpectedValueException("Generation {$id} has an unknown status.");
         }
 
-        $ratesPayload = $generation['rates'] ?? null;
+        $rates = $generation['rates'] ?? null;
 
-        if (! is_array($ratesPayload)) {
+        if (! is_array($rates)) {
             throw new UnexpectedValueException("Generation {$id} has no \"rates\".");
         }
+
+        TokenRates::fromArray($rates);
 
         $usage = $generation['usage'] ?? null;
 
@@ -86,8 +86,7 @@ final readonly class GenerationData
             id: $id,
             status: $status,
             localId: is_string($localId) ? $localId : null,
-            rates: TokenRates::fromArray($ratesPayload),
-            ratesPayload: $ratesPayload,
+            rates: $rates,
             usage: is_array($usage) ? TokenUsage::fromArray($usage) : null,
             errorCode: $status === GenerationStatus::Failed ? $error['code'] : null,
             errorMessage: is_string($errorMessage) ? $errorMessage : null,

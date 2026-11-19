@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Dto\Pixelforge\GenerationData;
+use App\Dto\Pixelforge\TokenRates;
 use App\Enums\GenerationStatus;
 use App\Models\Generation;
 use App\Pricing\PriceCalculator;
@@ -37,7 +38,7 @@ final readonly class ApplyProviderState
             $isLocalFailure = $generation->isLocalFailure();
 
             $generation->provider_id ??= $state->id;
-            $generation->rates ??= $state->ratesPayload;
+            $generation->rates ??= $state->rates;
             $generation->provider_synced_at = now();
 
             if ($isLocalFailure) {
@@ -114,24 +115,20 @@ final readonly class ApplyProviderState
     }
 
     /**
-     * The rates are the ones the generation was accepted at, which the provider repeats in every
-     * report.
+     * The cost uses the rates recorded on the generation when the provider first reported it,
+     * not the ones in this report: the provider fixes rates when it accepts a generation.
      */
     private function recordSuccess(Generation $generation, GenerationData $state): void
     {
         $usage = $state->usage ?? throw new LogicException('GenerationData guarantees usage on a succeeded generation.');
+        $providerCost = $this->calculator->providerCost($usage, TokenRates::fromArray($generation->rates ?? $state->rates));
 
-        $providerCost = $this->calculator->providerCost($usage, $state->rates);
-
-        $generation->input_text_tokens = $usage->inputText;
-        $generation->input_image_tokens = $usage->inputImage;
-        $generation->output_tokens = $usage->output;
-        $generation->reasoning_tokens = $usage->reasoning;
-        $generation->provider_cost = $providerCost;
-        $generation->user_charge = $this->calculator->userCharge($providerCost, $generation->price_multiplier_basis_points);
-        $generation->image_url = $state->imageUrl;
-        $generation->image_url_expires_at = $state->imageUrlExpiresAt;
-        $generation->completed_at = $state->completedAt ?? now();
+        $generation->markSucceeded(
+            usage: $usage,
+            providerCost: $providerCost,
+            userCharge: $this->calculator->userCharge($providerCost, $generation->price_multiplier_basis_points),
+            state: $state,
+        );
     }
 
     private function contradictsFinalStatus(Generation $generation, GenerationData $state): bool

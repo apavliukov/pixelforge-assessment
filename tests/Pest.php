@@ -120,7 +120,7 @@ function deliverWebhook(string $body, ?string $signature): TestResponse
         $server['HTTP_PIXELFORGE_SIGNATURE'] = $signature;
     }
 
-    return test()->call('POST', '/api/webhooks/pixelforge', server: $server, content: $body);
+    return test()->call('POST', route('pixelforgeWebhook'), server: $server, content: $body);
 }
 
 /**

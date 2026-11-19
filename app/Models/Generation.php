@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Casts\MoneyCast;
+use App\Dto\Pixelforge\GenerationData;
+use App\Dto\Pixelforge\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
@@ -67,9 +69,19 @@ final class Generation extends Model
     use HasUuids;
 
     /**
-     * How long after submission a generation is polled every minute rather than every ten.
+     * How long after submission a generation counts as young and is polled more often.
      */
     public const int YOUNG_FOR_MINUTES = 10;
+
+    /**
+     * How long a young accepted generation may go without news before it is polled.
+     */
+    public const int POLL_YOUNG_AFTER_MINUTES = 1;
+
+    /**
+     * How long an older accepted generation may go without news before it is polled.
+     */
+    public const int POLL_OLD_AFTER_MINUTES = 10;
 
     /**
      * How long a generation may wait for the provider to accept it, from submission.
@@ -105,9 +117,33 @@ final class Generation extends Model
     }
 
     /**
+     * Records a success with the money the provider billed for it. Not saved.
+     *
+     * @param  TokenUsage  $usage  the tokens the provider counted
+     * @param  Money  $providerCost  what the provider billed
+     * @param  Money  $userCharge  what the user pays
+     * @param  GenerationData  $state  the succeeded provider state, for the image and completion time
+     */
+    public function markSucceeded(TokenUsage $usage, Money $providerCost, Money $userCharge, GenerationData $state): void
+    {
+        $this->status = GenerationStatus::Succeeded;
+        $this->input_text_tokens = $usage->inputText;
+        $this->input_image_tokens = $usage->inputImage;
+        $this->output_tokens = $usage->output;
+        $this->reasoning_tokens = $usage->reasoning;
+        $this->provider_cost = $providerCost;
+        $this->user_charge = $userCharge;
+        $this->image_url = $state->imageUrl;
+        $this->image_url_expires_at = $state->imageUrlExpiresAt;
+        $this->completed_at = $state->completedAt ?? now();
+    }
+
+    /**
      * Records a failure: a failed generation is never charged. Not saved.
      *
+     * @param  string  $code  a `FailureCode` value or the provider's error code
      * @param  string|null  $message  what went wrong, for the operator
+     * @param  CarbonImmutable|null  $completedAt  when it failed; now if not given
      */
     public function markFailed(string $code, ?string $message, ?CarbonImmutable $completedAt = null): void
     {
@@ -147,10 +183,10 @@ final class Generation extends Model
             ->where(fn (Builder $dueQuery): Builder => $dueQuery
                 ->where(fn (Builder $youngQuery): Builder => $youngQuery
                     ->where('created_at', '>=', $youngSince)
-                    ->where('provider_synced_at', '<', now()->subMinute()))
+                    ->where('provider_synced_at', '<', now()->subMinutes(self::POLL_YOUNG_AFTER_MINUTES)))
                 ->orWhere(fn (Builder $oldQuery): Builder => $oldQuery
                     ->where('created_at', '<', $youngSince)
-                    ->where('provider_synced_at', '<', now()->subMinutes(10))))
+                    ->where('provider_synced_at', '<', now()->subMinutes(self::POLL_OLD_AFTER_MINUTES))))
             ->oldest('provider_synced_at');
     }
 
@@ -162,7 +198,10 @@ final class Generation extends Model
     #[Scope]
     protected function unfinished(Builder $query): void
     {
-        $query->whereNotIn('status', [GenerationStatus::Succeeded, GenerationStatus::Failed]);
+        $query->whereNotIn('status', array_filter(
+            GenerationStatus::cases(),
+            static fn (GenerationStatus $status): bool => $status->isFinal(),
+        ));
     }
 
     /**
