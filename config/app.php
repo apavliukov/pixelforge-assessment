@@ -75,7 +75,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | The users with these ids are operators: they may open the operator
-    | report. A comma-separated list of ids of accounts that already exist;
+    | report. A comma-separated list of ids of users who already exist;
     | anything that is not a whole number is ignored.
     |
     */

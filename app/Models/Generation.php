@@ -124,7 +124,8 @@ final class Generation extends Model
      * @param  TokenUsage  $usage  the tokens the provider counted
      * @param  Money  $providerCost  what the provider billed
      * @param  Money  $userCharge  what the user pays
-     * @param  GenerationData  $state  the succeeded provider state, for the image and completion time
+     * @param  GenerationData  $state  the succeeded provider state, for the image and the completion
+     *                                 time, which decides the day the provider bills it on
      */
     public function markSucceeded(TokenUsage $usage, Money $providerCost, Money $userCharge, GenerationData $state): void
     {
@@ -137,7 +138,7 @@ final class Generation extends Model
         $this->user_charge = $userCharge;
         $this->image_url = $state->imageUrl;
         $this->image_url_expires_at = $state->imageUrlExpiresAt;
-        $this->completed_at = $state->completedAt ?? now();
+        $this->completed_at = $state->completedAt;
     }
 
     /**

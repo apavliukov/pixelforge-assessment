@@ -34,7 +34,7 @@ generations, on the day they completed, and reports each API key separately.
 | `OperatorReportRequest`                          | validates `start_date` and `end_date`, and gives the period with its defaults                    |
 | `OperatorReportQuery`                            | one grouped query → `OperatorReport` (days → user rows, day totals, period totals)               |
 | `ReconciliationQuery`                            | `OperatorReport` + the provider's usage → per-day and period comparison                          |
-| `PixelforgeClient::usage()`                      | `GET /v1/usage` → `UsageReportData` (days of date, generations, cost as `Money`)                 |
+| `PixelforgeClient::usageReport()`                | `GET /v1/usage` → `UsageReportData` (days of date, generations, cost as `Money`)                 |
 | `Money::minus()`                                 | profit and differences; refuses a negative result, like the rest of `Money`                      |
 
 Routes, under `auth`:
@@ -69,8 +69,10 @@ group by 1, 2
 `completed_at` is stored in UTC, so the cast is the UTC day. Sums of `bigint` nanodollars are exact;
 Postgres returns them as `numeric`, read as integers into `Money`. Users are loaded in one query by
 the ids found. Day and period totals are added up in PHP from the rows. Profit is
-`user charges − provider costs` per row and per total; with a markup of at least ×1 it is never
-negative.
+`user charges − provider costs` per row and per total. It is never negative: `EstimateGeneration`,
+which every submission goes through, refuses a markup below ×1, so no generation is recorded with
+one. The check is there and not where the user charge is calculated, because a generation the
+provider has already accepted must always be able to finish.
 
 `completed_at` gets an index. Rows for at most 92 days fit in one response: the report is not
 paginated on the server, because a day's totals and its reconciliation need every user of that day.
@@ -81,7 +83,7 @@ rows per user are what the report is for.
 ### Reconciliation is a deferred prop
 
 `Inertia::defer()` makes the page render with our figures and fetch `reconciliation` in a second
-request. That request calls `PixelforgeClient::usage()` for the same period. The other props are
+request. That request calls `PixelforgeClient::usageReport()` for the same period. The other props are
 closures, so that second request builds the report once, for the comparison, and nothing else. If it throws
 (`ConnectionException`, `RequestException`, an unexpected body), the prop is `null` and the page
 says the provider's figures are unavailable. Nothing is cached: a reviewer who has just generated an
@@ -98,10 +100,20 @@ with no user rows.
 
 ### The period
 
-`OperatorReportRequest` rules: both `nullable|date_format:Y-m-d`; `end_date` is
-`after_or_equal:start_date` and at most 91 days after it. Defaults: `end_date` = today in UTC,
-`start_date` = `end_date` minus 29 days. When only one is given, the other is derived the same way.
-The page has two native date inputs in a `GET` form.
+`OperatorReportRequest` rules: both dates `nullable|date_format:Y-m-d`. Its `after()` hook then
+checks the period as a whole, with a missing date filled in: `end_date` defaults to today in UTC,
+`start_date` to `end_date` minus 29 days. It refuses a period that ends in the future, ends before
+it starts, or is longer than 92 days. The error goes to `end_date` when the operator gave one and to
+`start_date` otherwise, so it never lands on a field they did not fill.
+
+A request that does not name both dates is redirected to the address that does. The request that
+later loads the reconciliation repeats that address, so it cannot work the default period out again
+and, around midnight UTC, compare other days than the page shows.
+
+A refused period redirects to the report for the default period (`getRedirectUrl()`), where the
+error is shown: the usual "back" would lead away from the report when the address was opened
+directly. The page reads the errors from the page props as well as from the form. The page has two
+native date inputs in a `GET` form; the end date cannot be picked later than today in UTC.
 
 ### What the browser receives
 
@@ -113,7 +125,7 @@ like the generation types.
 - `report`: `{ days: [{ date, rows: [{ user: { name, email }, generations, userCharge, providerCost, profit }], totals }], totals }`
 - `reconciliation` (deferred, nullable): `{ days: { [date]: { ours, provider, generations: { ours, provider }, matches, difference, providerIsHigher } }, total: { … } }`
 - `unfinishedCount`
-- `aboveEstimate`: `[{ user, completedAt, estimateMax, userCharge, excess }]`
+- `aboveEstimate`: `[{ id, user, completedAt, estimateMax, userCharge, excess }]`
 
 ### Account deletion is removed
 
@@ -122,6 +134,13 @@ Decided in `docs/DECISIONS.md`. Removed: the `profile.destroy` route, `ProfileCo
 deletion in `ProfileUpdateTest`. The `generations.user_id` foreign key changes from
 `cascadeOnDelete` to `restrictOnDelete` in the original migration, which is safe because no
 database has been deployed; local databases are rebuilt with `migrate:fresh`.
+
+### The day of a succeeded generation is the provider's
+
+`GenerationData` refuses a succeeded provider state that has no `completed_at`. Recording the moment
+the state happened to arrive instead could put the generation on the day after the one the provider
+bills it on, and both days would then differ for good. It is refused in the same place and with the same error as a
+succeeded state without usage, so it is handled the same way.
 
 ## Risks / Trade-offs
 

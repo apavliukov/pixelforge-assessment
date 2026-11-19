@@ -72,6 +72,12 @@ final readonly class GenerationData
             throw new UnexpectedValueException("Generation {$id} succeeded without \"usage\".");
         }
 
+        $completedAt = self::timestamp($generation, 'completed_at');
+
+        if ($status === GenerationStatus::Succeeded && ! $completedAt instanceof CarbonImmutable) {
+            throw new UnexpectedValueException("Generation {$id} succeeded without \"completed_at\".");
+        }
+
         $error = $generation['error'] ?? null;
 
         if ($status === GenerationStatus::Failed && ! is_string($error['code'] ?? null)) {
@@ -92,7 +98,7 @@ final readonly class GenerationData
             errorMessage: is_string($errorMessage) ? $errorMessage : null,
             imageUrl: is_string($imageUrl) ? $imageUrl : null,
             imageUrlExpiresAt: self::timestamp($generation, 'image_url_expires_at'),
-            completedAt: self::timestamp($generation, 'completed_at'),
+            completedAt: $completedAt,
         );
     }
 

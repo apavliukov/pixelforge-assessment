@@ -68,6 +68,15 @@ final readonly class OperatorReportQuery
     }
 
     /**
+     * Generations of all users that have no final status yet. One the provider has completed and
+     * this app has not yet recorded makes today differ until its state arrives.
+     */
+    public function unfinishedCount(): int
+    {
+        return Generation::query()->unfinished()->count();
+    }
+
+    /**
      * @param  EloquentCollection<int, User>  $users  by id
      */
     private static function row(stdClass $sum, EloquentCollection $users): ReportRow

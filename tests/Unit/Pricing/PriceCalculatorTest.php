@@ -6,7 +6,6 @@ use App\Dto\Pixelforge\PricingData;
 use App\Dto\Pixelforge\TokenUsage;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
-use App\Pricing\Money;
 use App\Pricing\PriceCalculator;
 
 it('sums every token type at the generation\'s own rates', function (TokenUsage $usage, int $expected): void {
@@ -55,7 +54,3 @@ it('refuses to estimate a quality and size the pricing does not publish', functi
         priceMultiplierBasisPoints: 12_500,
     );
 })->throws(UnexpectedValueException::class, 'high quality at 1024x1024');
-
-it('refuses a price multiplier below one, which would charge less than the provider cost', function (): void {
-    new PriceCalculator()->userCharge(Money::fromNano(373_875_000), 9_999);
-})->throws(InvalidArgumentException::class);

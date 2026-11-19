@@ -75,7 +75,7 @@ final readonly class PixelforgeClient
      * @throws RequestException when Pixelforge answers with an error status
      * @throws UnexpectedValueException when the response is not a valid usage report
      */
-    public function usage(ReportPeriod $period): UsageReportData
+    public function usageReport(ReportPeriod $period): UsageReportData
     {
         $response = $this->request()
             ->get('usage', ['start_date' => $period->startDate(), 'end_date' => $period->endDate()])

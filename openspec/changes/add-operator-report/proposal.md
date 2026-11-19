@@ -26,15 +26,19 @@ paginating the report, and exporting it.
 
 ### Modified Capabilities
 
-None. `pricing`, `generation-state` and `generation-history` are used as they are.
+- `pricing`: a markup below ×1 is refused, so that profit is never negative.
+
+`generation-state` and `generation-history` are used as they are.
 
 ## Impact
 
 - New route `GET /operator/report`; removed route `DELETE /settings/profile`.
 - New code: a gate and its configuration, a controller and form request, a query that builds the report and one that reconciles it, in a new `app/Queries` folder, a `usage` method on `PixelforgeClient` with its data object, `Money::minus()`.
-- New frontend: one page; a link in the sidebar for operators; the "Delete account" block and its component are removed.
+- New frontend: one page; a link in the sidebar and the header for operators; the "Delete account" block and its component are removed.
 - `HandleInertiaRequests` shares whether the user is an operator.
 - The generations migration: the user foreign key becomes `restrictOnDelete`, and `completed_at` gets an index. The migration is edited in place — no database has been deployed yet.
 - `.env.example` and the README gain `OPERATOR_USER_IDS`.
 - `GLOSSARY.md` (Profit, Operator report, Reconciliation) and `docs/DECISIONS.md` (account deletion) are already updated.
+- `EstimateGeneration` refuses a markup below ×1; `GenerationData` refuses a succeeded provider state without a completion time, instead of recording the moment it happened to arrive.
+- Tests: the provider's key and webhook secret are blank in `phpunit.xml`, and stray HTTP requests are refused for every feature test.
 - No new dependencies.

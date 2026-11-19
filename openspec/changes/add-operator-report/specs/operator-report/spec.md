@@ -88,14 +88,17 @@ amount SHALL be given exactly, to nine decimals.
 ### Requirement: The operator chooses the period
 
 The system SHALL report on a period given by a start date and an end date, both inclusive and both
-UTC days. Without them the period SHALL be the 30 days ending today in UTC. A period longer than 92
-days, an end date before the start date, or a value that is not a date SHALL be refused with an
-error on the field that caused it.
+UTC days. Without them the period SHALL be the 30 days ending today in UTC, and the operator SHALL
+be taken to the address that names both dates, so that everything loaded for the page means the
+same days. A period longer than 92 days, a period ending in the future, an end date before the
+start date, or a value that is not a date SHALL be refused. The error SHALL be attached to the end
+date when the operator gave one and to the start date otherwise, and SHALL be shown on the report
+for the default period wherever the request came from.
 
 #### Scenario: Default period
 
 - **WHEN** an operator opens the report on 2026-11-19 without dates
-- **THEN** the period is 2026-10-21 to 2026-11-19
+- **THEN** they are taken to the report for 2026-10-21 to 2026-11-19
 
 #### Scenario: Chosen period
 
@@ -112,7 +115,22 @@ error on the field that caused it.
 - **WHEN** the end date is earlier than the start date
 - **THEN** the request is refused with an error on the end date
 
-### Requirement: Provider costs are reconciled with the provider's usage
+#### Scenario: End in the future
+
+- **WHEN** an operator asks on 2026-11-19 for a period ending on 2026-11-20
+- **THEN** the request is refused with an error on the end date
+
+#### Scenario: Only a start date, too long ago
+
+- **WHEN** an operator asks on 2026-11-19 for a period starting on 2026-01-01 without an end date
+- **THEN** the request is refused with an error on the start date
+
+#### Scenario: A refused period opened directly
+
+- **WHEN** an operator opens the report's address with a period that is refused
+- **THEN** they see the report for the default period with the error
+
+### Requirement: Provider costs are reconciled with the provider's usage report
 
 The system SHALL compare, for each day of the period and for the period as a whole, the provider
 cost and number of generations it recorded with the cost and number the provider reports for the
@@ -152,13 +170,13 @@ figures cannot be obtained, in which case the report SHALL say that they are una
 
 #### Scenario: The provider is unavailable
 
-- **WHEN** the provider's usage cannot be obtained
+- **WHEN** the provider's usage report cannot be obtained
 - **THEN** the report still lists our figures and says the provider's are unavailable
 
 #### Scenario: The same period is asked of the provider
 
 - **WHEN** the report is viewed for 2026-11-01 to 2026-11-03
-- **THEN** the provider is asked for usage from 2026-11-01 to 2026-11-03
+- **THEN** the provider is asked for its usage report from 2026-11-01 to 2026-11-03
 
 ### Requirement: The report explains what can make today differ
 

@@ -53,4 +53,5 @@ it('rejects a generation it could not apply safely', function (string $status, a
     'no rates' => ['queued', ['rates' => null]],
     'malformed rate' => ['queued', ['rates' => ['input_text_tokens' => '5.00', 'input_image_tokens' => '10.00', 'output_tokens' => '40,00', 'reasoning_tokens' => '12.50']]],
     'malformed timestamp' => ['succeeded', ['completed_at' => 'yesterday-ish']],
+    'succeeded without a completion time' => ['succeeded', ['completed_at' => null]],
 ])->throws(UnexpectedValueException::class);

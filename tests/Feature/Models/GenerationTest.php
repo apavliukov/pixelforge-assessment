@@ -42,10 +42,13 @@ it('refuses to store a plain number in a money column', function (): void {
     Generation::factory()->make(['estimate_max' => 21_831_250]);
 })->throws(InvalidArgumentException::class, 'estimate_max');
 
+/**
+ * The deletion runs in a transaction of its own, so the refused statement does not abort the
+ * one the test itself runs in.
+ */
 it('refuses to delete a user who has a generation', function (): void {
     $generation = Generation::factory()->create();
 
-    // Inside a transaction of its own, so the refused statement does not abort the test's.
-    expect(fn () => DB::transaction(fn () => $generation->user->delete()))->toThrow(QueryException::class)
+    expect(fn (): ?bool => DB::transaction(fn (): ?bool => $generation->user->delete()))->toThrow(QueryException::class)
         ->and($generation->fresh())->not->toBeNull();
 });

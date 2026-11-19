@@ -9,11 +9,6 @@ use App\Pricing\Money;
 use App\Queries\OperatorReportQuery;
 use App\Queries\ReconciliationQuery;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Http;
-
-beforeEach(function (): void {
-    Http::preventStrayRequests();
-});
 
 /**
  * Records succeeded generations completed at noon UTC of the date, with these provider costs.
@@ -44,7 +39,7 @@ function reconcile(string $startDate, string $endDate): array
 
 it('marks a day as matching when the cost and the number of generations are equal', function (): void {
     recordedOn('2026-11-01', [100_000_000, 69_080_000]);
-    fakeProviderUsage(['2026-11-01' => [2, '0.169080000'], '2026-11-02' => [0, '0.000000000']]);
+    fakeUsageReport(['2026-11-01' => [2, '0.169080000'], '2026-11-02' => [0, '0.000000000']]);
 
     $matching = [
         'ours' => '0.169080000',
@@ -60,7 +55,7 @@ it('marks a day as matching when the cost and the number of generations are equa
 
 it('gives the difference when the provider billed more', function (): void {
     recordedOn('2026-11-19', [100_000_000, 100_000_000, 100_000_000, 100_000_000, 100_000_000, 100_000_000, 100_000_000, 58_660_000]);
-    fakeProviderUsage(['2026-11-19' => [10, '0.788892500']]);
+    fakeUsageReport(['2026-11-19' => [10, '0.788892500']]);
 
     $day = reconcile('2026-11-19', '2026-11-19')['days']['2026-11-19'];
 
@@ -76,7 +71,7 @@ it('gives the difference when the provider billed more', function (): void {
 
 it('gives the difference when we recorded more', function (): void {
     recordedOn('2026-11-01', [100_000_000, 100_000_000]);
-    fakeProviderUsage(['2026-11-01' => [1, '0.100000000']]);
+    fakeUsageReport(['2026-11-01' => [1, '0.100000000']]);
 
     expect(reconcile('2026-11-01', '2026-11-01')['days']['2026-11-01'])->toMatchArray([
         'matches' => false,
@@ -87,7 +82,7 @@ it('gives the difference when we recorded more', function (): void {
 
 it('does not match when the costs are equal and the numbers of generations differ', function (): void {
     recordedOn('2026-11-01', [100_000_000, 100_000_000]);
-    fakeProviderUsage(['2026-11-01' => [1, '0.200000000']]);
+    fakeUsageReport(['2026-11-01' => [1, '0.200000000']]);
 
     expect(reconcile('2026-11-01', '2026-11-01')['days']['2026-11-01'])->toMatchArray([
         'matches' => false,
@@ -97,7 +92,7 @@ it('does not match when the costs are equal and the numbers of generations diffe
 
 it('reconciles a day only the provider knows, with our cost as zero', function (): void {
     recordedOn('2026-11-02', [100_000_000]);
-    fakeProviderUsage(['2026-11-01' => [1, '0.050000000'], '2026-11-02' => [1, '0.100000000']]);
+    fakeUsageReport(['2026-11-01' => [1, '0.050000000'], '2026-11-02' => [1, '0.100000000']]);
 
     $reconciliation = reconcile('2026-11-01', '2026-11-02');
 

@@ -19,14 +19,14 @@ use Tests\TestCase;
 | case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
 | need to change it using the "pest()" function to bind different classes or traits.
 |
+| No feature test may reach the provider, whether or not its file remembers to say so:
+| stray requests are refused for all of them.
+|
 */
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->beforeEach(function (): void {
-        // No test may reach the provider, whether or not its file remembers to say so.
-        Http::preventStrayRequests();
-    })
+    ->beforeEach(fn () => Http::preventStrayRequests())
     ->in('Feature');
 
 /*
@@ -167,7 +167,7 @@ function providerUsageFigures(int $generations, string $cost): array
  *
  * @param  array<string, array{int, string}>  $days
  */
-function fakeProviderUsage(array $days): void
+function fakeUsageReport(array $days): void
 {
     $rows = [];
     $generations = 0;

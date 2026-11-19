@@ -36,3 +36,19 @@ it('cannot estimate when no pricing can be obtained', function (): void {
 
     resolve(EstimateGeneration::class)('A lighthouse', ImageSize::Square, ImageQuality::Low, 0);
 })->throws(PricingUnavailableException::class);
+
+it('refuses a markup below one, which would charge users less than the provider bills', function (): void {
+    Http::fake(['pixelforge.promptedit.dev/v1/pricing' => Http::response(publishedPricing())]);
+    config(['pricing.price_multiplier_basis_points' => 9_999]);
+
+    resolve(EstimateGeneration::class)('A lighthouse', ImageSize::Square, ImageQuality::Low, 0);
+})->throws(LogicException::class, '10000');
+
+it('estimates with no markup at all, charging exactly the provider cost', function (): void {
+    Http::fake(['pixelforge.promptedit.dev/v1/pricing' => Http::response(publishedPricing())]);
+    config(['pricing.price_multiplier_basis_points' => 10_000]);
+
+    $estimate = resolve(EstimateGeneration::class)(str_repeat('a', 400), ImageSize::Landscape, ImageQuality::High, 2);
+
+    expect($estimate->max)->toEqual(Money::fromNano(373_875_000));
+});

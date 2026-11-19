@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { ChevronRight } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import AlertError from '@/components/AlertError.vue';
@@ -41,10 +41,18 @@ defineOptions({
     },
 });
 
+// The provider reports by UTC day, so the last day that can be asked for is today in UTC.
+const today = new Date().toISOString().slice(0, 10);
+
 const form = useForm({
     start_date: props.period.start,
     end_date: props.period.end,
 });
+
+// A refused period arrives as page errors when the address was opened directly, and as form
+// errors when the form was submitted.
+const page = usePage();
+const periodErrors = computed(() => ({ ...page.props.errors, ...form.errors }));
 
 const reconciliationLoading = computed(
     () => props.reconciliation === undefined,
@@ -154,6 +162,7 @@ const momentFormat = new Intl.DateTimeFormat('en-US', {
                     id="end_date"
                     v-model="form.end_date"
                     type="date"
+                    :max="today"
                     required
                 />
             </div>
@@ -168,14 +177,14 @@ const momentFormat = new Intl.DateTimeFormat('en-US', {
                 {{ allExpanded ? 'Collapse all days' : 'Expand all days' }}
             </Button>
             <div class="basis-full">
-                <InputError :message="form.errors.start_date" />
-                <InputError :message="form.errors.end_date" />
+                <InputError :message="periodErrors.start_date" />
+                <InputError :message="periodErrors.end_date" />
             </div>
         </form>
 
         <AlertError
             v-if="reconciliation === null"
-            title="Pixelforge usage is unavailable right now"
+            title="The Pixelforge usage report is unavailable right now"
             :errors="[
                 'Provider costs could not be reconciled. Reload the page to try again.',
             ]"

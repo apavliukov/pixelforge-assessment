@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * A user who has generations cannot be deleted: the provider costs they carry must stay for
+     * the operator report to reconcile.
+     */
     public function up(): void
     {
         Schema::create('generations', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            // A user with generations cannot be deleted: the provider costs they carry must stay.
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->string('provider_id')->nullable()->unique();
 

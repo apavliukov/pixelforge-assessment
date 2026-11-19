@@ -32,7 +32,7 @@ final readonly class ReconciliationQuery
      */
     public function get(OperatorReport $report, ReportPeriod $period): Reconciliation
     {
-        $usage = $this->pixelforge->usage($period);
+        $usage = $this->pixelforge->usageReport($period);
 
         $billed = array_filter($usage->days, static fn (array $day): bool => $day['generations'] > 0 || ! $day['cost']->isZero());
         $recorded = array_column($report->days, 'totals', 'date');

@@ -27,7 +27,7 @@ final readonly class ReportFigures
      */
     public static function sum(array $figures): self
     {
-        return array_reduce($figures, static fn (self $total, self $each): self => $total->plus($each), self::zero());
+        return array_reduce($figures, static fn (self $total, self $figure): self => $total->plus($figure), self::zero());
     }
 
     public function plus(self $other): self
@@ -40,8 +40,8 @@ final readonly class ReportFigures
     }
 
     /**
-     * What the operator keeps. `PriceCalculator::userCharge()` refuses a markup below ×1, so a
-     * user charge is never under its provider cost.
+     * What the operator keeps. A generation is never recorded with a markup below ×1 (see
+     * `EstimateGeneration`), so a user charge is never under its provider cost.
      */
     public function profit(): Money
     {

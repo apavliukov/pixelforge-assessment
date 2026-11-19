@@ -82,6 +82,10 @@ _Avoid_: Margin, revenue, earnings
 Per UTC day and user: the succeeded generations finished that day, their user charges, provider costs and profit.
 _Avoid_: Admin report, dashboard, statistics
 
+**Usage report**:
+What the provider says it billed the operator, per UTC day: the number of succeeded generations completed that day and their total provider cost.
+_Avoid_: Usage (that is one generation's token counts), billing, invoice
+
 **Reconciliation**:
-Comparing a day's provider cost as we recorded it with what the provider reports for that day.
+Comparing a day's provider cost as we recorded it with the usage report for that day.
 _Avoid_: Audit, sync, verification

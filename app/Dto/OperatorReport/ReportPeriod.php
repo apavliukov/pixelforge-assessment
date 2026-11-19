@@ -72,6 +72,16 @@ final readonly class ReportPeriod
     }
 
     /**
+     * The period as the report's address carries it.
+     *
+     * @return array{start_date: string, end_date: string}
+     */
+    public function toQuery(): array
+    {
+        return ['start_date' => $this->startDate(), 'end_date' => $this->endDate()];
+    }
+
+    /**
      * @return array{start: string, end: string}
      */
     public function toArray(): array
