@@ -88,7 +88,8 @@ every start. The demo accounts therefore exist before the web server accepts a r
 user by `demo_account`, 404 if the seeder has not created it; `Auth::login()`; regenerate the session;
 redirect to `operatorReport.show` for the operator and `generations.index` otherwise.
 
-The switch is checked in the controller and not by registering the route conditionally, so that it
+The switch is read with `FILTER_VALIDATE_BOOLEAN`, so only `true`, `1`, `on` and `yes` turn it on: a
+plain cast would have made `off` and `no` mean on. The switch is checked in the controller and not by registering the route conditionally, so that it
 is one config value read at request time and can be tested both ways. With the switch off the
 route answers exactly as if it did not exist.
 
@@ -109,7 +110,9 @@ reset link for a demo account goes to an `example.com` address nobody receives.
 
 ### The sign-in page
 
-`auth/Login.vue` gets `demoAccounts: { key, name, description }[]`. When the list is not empty the
+`auth/Login.vue` gets `demoAccounts: { key, name, description }[]`: the demo accounts that exist,
+so a database that was not seeded, or an account whose email someone else holds, shows no dead
+button. When the list is not empty the
 page shows, above the form, a short line saying this is a demo and one button per account
 ("Sign in as Ada", "Sign in as the operator"), each a small form posting to `demoLogin.store`
 through its Wayfinder helper. Below it, "or sign in with your own account" and the existing form.
@@ -119,7 +122,7 @@ The link to registration is unchanged.
 
 The `operator()` helper in `OperatorReportTest` becomes `User::factory()->operator()->create()`.
 The email-takeover test stays, as it holds for the column as well. New: the seeder (first run, repeated run, alongside
-a registered user, no generations), demo sign-in (each account and its destination, switch off,
+a registered user, an email someone else holds, no generations), demo sign-in (each account and its destination, switch off,
 unknown account, unseeded database, throttle, session regenerated), the sign-in page's
 `demoAccounts` prop both ways, a password not opening a demo account, and the operator mark not
 being settable through registration or the profile.

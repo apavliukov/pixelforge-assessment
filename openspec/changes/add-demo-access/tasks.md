@@ -6,8 +6,9 @@
 
 ## 2. Demo accounts
 
-- [x] 2.1 Add the `DemoAccount` enum with a unit test of its three cases (name, email, which one is the operator) and verify it passes
+- [x] 2.1 Add the `DemoAccount` enum; its three accounts are asserted through the seeder tests
 - [x] 2.2 Rewrite `DatabaseSeeder` to create the demo accounts; write tests for every scenario of "Demo accounts are created with the app" and verify they pass
+- [x] 2.3 Add the `demo_account` column, cast and `User::isDemoAccount()`; make the seeder write it and skip an account whose key or email is taken; test that someone holding a demo account's email is left alone and is not opened by demo sign-in
 
 ## 3. Demo sign-in
 
@@ -16,6 +17,8 @@
 
 - [x] 3.3 Refuse profile changes for demo accounts and tell the profile page; write tests for every scenario of "A demo account cannot be taken over" and verify they pass
 
+- [x] 3.4 Parse the switch strictly and list only the demo accounts that exist on the sign-in page, with tests for both
+
 ## 4. Frontend
 
 - [x] 4.1 Add the demo buttons to `auth/Login.vue` above the existing form, with the type for the new prop, and the fixed-profile state to `settings/Profile.vue`; verify `npx vue-tsc --noEmit` and `npx vp check` pass on the changed files
@@ -23,7 +26,7 @@
 
 ## 5. Deploy and documents
 
-- [x] 5.1 Run the seeder from `docker/production/start.sh` after the migrations
+- [x] 5.1 Run the seeder from `docker/production/start.sh` after the migrations; add it to the local setup in the README and the `setup` script
 - [x] 5.2 Update the README: `DEMO_LOGIN_ENABLED` in place of `OPERATOR_USER_IDS` in the environment table; a note that the demo is open to anyone; "What I would do next" opens with replacing the `is_operator` column by roles and permissions (`spatie/laravel-permission`)
 
 ## 6. Wrap-up

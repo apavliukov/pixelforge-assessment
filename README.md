@@ -25,6 +25,7 @@ npm install                   # also installs the git hooks (lefthook.yml)
 make local-up                 # start the containers
 vendor/bin/sail artisan key:generate
 vendor/bin/sail artisan migrate
+vendor/bin/sail artisan db:seed  # creates the demo accounts; safe to repeat
 make local-dev                # Vite, queue listener, scheduler and logs in one terminal
 ```
 
@@ -81,7 +82,7 @@ of their own.
 This makes the public demo open on purpose. Anyone can spend the provider key's quota and read the
 operator report, which holds the demo accounts and whoever chose to register. Leave the variable
 unset anywhere real users or real money are involved: the buttons disappear and the route behind
-them answers 404.
+them answers 404. Only `true`, `1`, `on` and `yes` switch it on.
 
 The seeder creates accounts only. It never creates generations: an invented one would carry a
 provider cost that Pixelforge knows nothing about, and the report could not reconcile.

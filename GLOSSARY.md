@@ -8,11 +8,15 @@ Users pay to generate images through Pixelforge; the operator resells each gener
 
 **User**:
 A registered person who submits generations and pays for them.
-_Avoid_: Customer, client, account
+_Avoid_: Customer, client; "account" as a word for the person (a user has an account)
 
 **Operator**:
 The party running this app, who pays Pixelforge and earns the markup.
 _Avoid_: Admin, owner
+
+**Demo account**:
+A user created by the seeder, whom anyone can sign in as with one click while demo sign-in is switched on. One of them may open the operator report.
+_Avoid_: Test user, guest, sandbox account
 
 **Provider**:
 Pixelforge, the service that produces the images and bills the operator.
@@ -89,7 +93,3 @@ _Avoid_: Usage (that is one generation's token counts), billing, invoice
 **Reconciliation**:
 Comparing a day's provider cost as we recorded it with the usage report for that day.
 _Avoid_: Audit, sync, verification
-
-**Demo account**:
-A user or operator created with the app, whom anyone can sign in as with one click while demo sign-in is switched on.
-_Avoid_: Test user, guest, sandbox account

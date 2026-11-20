@@ -20,9 +20,6 @@ use Illuminate\Notifications\Notifiable;
  * @property string $email
  * @property CarbonImmutable|null $email_verified_at
  * @property string $password
- * @property string|null $two_factor_secret
- * @property string|null $two_factor_recovery_codes
- * @property CarbonImmutable|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property bool $is_operator may open the operator report; set only by the seeder, never fillable
  * @property DemoAccount|null $demo_account the demo account this user is; set only by the seeder, never fillable
@@ -32,7 +29,7 @@ use Illuminate\Notifications\Notifiable;
  * @mixin IdeHelperUser
  */
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+#[Hidden(['password', 'remember_token'])]
 final class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */

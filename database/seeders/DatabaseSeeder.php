@@ -33,15 +33,19 @@ final class DatabaseSeeder extends Seeder
             ->orWhereIn('email', $accounts->map(static fn (DemoAccount $account): string => $account->email()))
             ->get(['demo_account', 'email']);
 
-        $accounts
-            ->reject(static fn (DemoAccount $account): bool => $taken->contains('demo_account', $account) || $taken->contains('email', $account->email()))
-            ->each(static fn (DemoAccount $account): bool => new User()->forceFill([
+        foreach ($accounts as $account) {
+            if ($taken->contains('demo_account', $account) || $taken->contains('email', $account->email())) {
+                continue;
+            }
+
+            new User()->forceFill([
                 'name' => $account->label(),
                 'email' => $account->email(),
                 'password' => Str::password(40),
                 'email_verified_at' => now(),
                 'is_operator' => $account->isOperator(),
                 'demo_account' => $account,
-            ])->save());
+            ])->save();
+        }
     }
 }

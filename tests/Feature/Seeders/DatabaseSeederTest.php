@@ -26,6 +26,16 @@ it('creates no duplicates and keeps the passwords when run again', function (): 
         ->and(User::query()->pluck('password', 'email')->all())->toBe($passwords);
 });
 
+it('adds the demo accounts next to a registered user, who stays as they are', function (): void {
+    $registered = User::factory()->create(['email' => 'someone@example.com']);
+
+    $this->seed(DatabaseSeeder::class);
+
+    expect(User::query()->count())->toBe(4)
+        ->and($registered->fresh()->only(['name', 'email', 'password', 'is_operator', 'demo_account']))
+        ->toBe(['name' => $registered->name, 'email' => 'someone@example.com', 'password' => $registered->password, 'is_operator' => false, 'demo_account' => null]);
+});
+
 it('leaves alone someone who already holds a demo account\'s email, and creates no demo account in their place', function (): void {
     $holder = User::factory()->create(['email' => 'operator@example.com']);
 

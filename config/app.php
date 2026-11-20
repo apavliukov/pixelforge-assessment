@@ -77,10 +77,11 @@ return [
     | When on, the sign-in page offers the seeded demo users and demo operator,
     | and anyone can sign in as one of them without a password. Meant for a
     | public demo; leave it off anywhere real users or real money are involved.
+    | Only true, 1, on and yes switch it on; anything else leaves it off.
     |
     */
 
-    'demo_login' => (bool) env('DEMO_LOGIN_ENABLED', false),
+    'demo_login' => filter_var(env('DEMO_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
 
     /*
     |--------------------------------------------------------------------------

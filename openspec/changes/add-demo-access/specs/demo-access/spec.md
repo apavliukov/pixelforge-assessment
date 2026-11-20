@@ -44,8 +44,9 @@ Seeding SHALL NOT create generations.
 While demo sign-in is switched on, the system SHALL sign a visitor in as the demo account they
 choose, without a password. Choosing the demo operator SHALL lead to the operator report; choosing a
 demo user SHALL lead to the generation page. While demo sign-in is switched off, the same request
-SHALL be answered as not found and SHALL sign nobody in. Demo sign-in SHALL be off unless
-configured on, and SHALL be limited in how often one visitor can use it.
+SHALL be answered as not found and SHALL sign nobody in. Demo sign-in SHALL be off unless configured on by a value that clearly means on (`true`, `1`, `on`,
+`yes`); any other value, such as `off` or `no`, SHALL leave it off. It SHALL be limited in how often
+one visitor can use it.
 
 #### Scenario: Signing in as a demo user
 
@@ -61,6 +62,11 @@ configured on, and SHALL be limited in how often one visitor can use it.
 
 - **WHEN** demo sign-in is off and a visitor asks to be signed in as a demo account
 - **THEN** the request is answered as not found and the visitor stays a guest
+
+#### Scenario: The switch is set to a value that means off
+
+- **WHEN** demo sign-in is configured as `off`, `no`, `0`, `false` or left empty
+- **THEN** demo sign-in is off
 
 #### Scenario: An account that is not a demo account
 
@@ -84,8 +90,9 @@ configured on, and SHALL be limited in how often one visitor can use it.
 
 ### Requirement: The sign-in page offers the demo accounts while demo sign-in is on
 
-While demo sign-in is switched on, the sign-in page SHALL list the three demo accounts, each with
-what the visitor will see as that account. While it is off, the page SHALL list none. The ordinary
+While demo sign-in is switched on, the sign-in page SHALL list the demo accounts that exist, each
+with what the visitor will see as that account, and SHALL leave out one that has not been created,
+so that no button leads nowhere. While it is off, the page SHALL list none. The ordinary
 sign-in form and the link to registration SHALL be present in both cases.
 
 #### Scenario: Demo sign-in is on
@@ -96,6 +103,16 @@ sign-in form and the link to registration SHALL be present in both cases.
 #### Scenario: Demo sign-in is off
 
 - **WHEN** a guest opens the sign-in page while demo sign-in is off
+- **THEN** the page lists no demo accounts
+
+#### Scenario: A demo account that was not created
+
+- **WHEN** demo sign-in is on and one demo account does not exist because someone else holds its email
+- **THEN** the page lists the other two only
+
+#### Scenario: Nothing has been seeded
+
+- **WHEN** demo sign-in is on and no demo account has been created
 - **THEN** the page lists no demo accounts
 
 #### Scenario: A password does not open a demo account
