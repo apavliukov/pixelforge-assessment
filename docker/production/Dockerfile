@@ -4,6 +4,12 @@ FROM dunglas/frankenphp:1-php8.4
 
 RUN install-php-extensions pdo_pgsql pcntl intl zip
 
+# The base image gives the server binary a file capability so that it can listen on ports 80 and
+# 443 without being root. A host that runs containers with a reduced set of capabilities, as
+# Render does, then refuses to execute it at all ("Operation not permitted"). The app listens on
+# $PORT, well above 1024, so the capability is not needed and is removed.
+RUN setcap -r /usr/local/bin/frankenphp
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
 COPY --from=node:22-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
