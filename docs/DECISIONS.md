@@ -83,8 +83,8 @@ retries after `Retry-After`. After 10 minutes of waiting the generation fails wi
 The docs ask for capped retries with growing delays; the numbers are our choice.
 
 **A generation that fails after being accepted is not retried automatically.**
-A retry is a new generation with a new price, and the user has not agreed to it. They get a
-"Try again" button that reopens the form with the same parameters.
+A retry is a new generation with a new price, and the user has not agreed to it. The failure
+message says they were not charged, and submitting again is their choice.
 
 **Polling is a scheduled command, once a minute, for unfinished generations with no recent news.**
 Webhook delivery is not guaranteed.

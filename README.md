@@ -87,6 +87,25 @@ them answers 404. Only `true`, `1`, `on` and `yes` switch it on.
 The seeder creates accounts only. It never creates generations: an invented one would carry a
 provider cost that Pixelforge knows nothing about, and the report could not reconcile.
 
+## Checking the behaviour
+
+Pixelforge reacts to keywords anywhere in the prompt, which makes each path easy to see:
+
+| Keyword        | What happens                                                            |
+| -------------- | ----------------------------------------------------------------------- |
+| `[succeed]`    | accepted and never fails at random                                      |
+| `[slow]`       | takes 60–90 seconds: the history shows the status changing live         |
+| `[fail]`       | accepted, then fails while processing: shown as failed, charged `$0.00` |
+| `[blocked]`    | refused by the content policy at submission: failed, not charged        |
+| `[overloaded]` | `503` at submission: retried five times, then failed, not charged       |
+| `[duplicate]`  | every webhook event is delivered twice: the cost is still recorded once |
+
+The operator report (`/operator/report`, demo operator) lists user charges, provider costs and
+profit per UTC day and user, and compares the provider costs with Pixelforge's own `GET /v1/usage`.
+
+Not built: credit balances, the second stretch goal. The reason is in
+[docs/DECISIONS.md](docs/DECISIONS.md#scope).
+
 ## What I would do next
 
 Things left out on purpose to keep the assessment small, in the order I would take them on a
