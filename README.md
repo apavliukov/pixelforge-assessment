@@ -123,6 +123,18 @@ holding a `view operator report` permission, assigned and revoked through the ap
 who did it. Authorization already goes through one gate, `viewOperatorReport`, so the change is the
 body of that gate and the seeder, and nothing that calls them.
 
+### Take the visitor's address from the edge proxy
+
+Rate limits keyed by address (sign-in, demo sign-in) count per proxy node, not per visitor. The app
+trusts only the proxy that connects to it, so the address it sees is the node a request came
+through: a forged `X-Forwarded-For` no longer changes it, but one visitor is spread over several
+nodes and visitors behind one node share a bucket.
+
+The fix is to read the address from the header the edge proxy sets itself and a client cannot send.
+On Render that is Cloudflare's `CF-Connecting-IP`: a request that arrived with a made-up one was
+refused at the edge. It would be an explicit setting, off by default, because on a host without
+that edge the same header is whatever the client writes.
+
 ### Generate the frontend types from the backend
 
 The shape of a generation is written twice: `GenerationResource` in PHP and

@@ -166,7 +166,11 @@ trusted instead. Trusting every address (`'*'`) was the first choice and was wro
 left-most `X-Forwarded-For` entry the client address, and a client writes that entry itself. On
 the deployed app a made-up address in the header got a rate-limit bucket of its own, so the limits
 on sign-in could be reset at will. With one trusted hop the address is the one the last proxy
-appended, which a client cannot choose.
+appended, which a client cannot choose. Cost, measured on the deployed app: that address is
+the proxy node the request came through, not the visitor. Six requests from one machine landed in
+three rate-limit buckets. So a limit keyed by address counts per node: one visitor gets several
+buckets, and visitors behind the same node share one. The sign-in limit also keys on the email, so
+guessing one account's password stays limited.
 
 **Web server, two queue workers and scheduler share one container.**
 Render's free tier has no background workers. The start script restarts each worker in a loop. On a
