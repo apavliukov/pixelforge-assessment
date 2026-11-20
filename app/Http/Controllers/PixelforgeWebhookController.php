@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  * queue is in the same database), so an acknowledged event is never lost. A repeated delivery
  * of a stored event is acknowledged and ignored.
  */
-final class PixelforgeWebhookController
+final class PixelforgeWebhookController extends Controller
 {
     public function __invoke(Request $request): Response
     {

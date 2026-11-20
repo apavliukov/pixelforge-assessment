@@ -10,7 +10,7 @@ use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
 use App\Exceptions\PricingUnavailableException;
 use App\Exceptions\TooManyUnfinishedGenerationsException;
-use App\Jobs\SubmitGenerationJob;
+use App\Jobs\SendGenerationJob;
 use App\Models\Generation;
 use App\Models\User;
 use App\Pricing\Money;
@@ -60,8 +60,8 @@ describe('with published pricing', function (): void {
             ->and($generation->estimate_min)->toEqual(Money::fromNano(357_781_250))
             ->and($generation->estimate_max)->toEqual(Money::fromNano(467_343_750))
             ->and($generation->price_multiplier_basis_points)->toBe(12_500);
-        Queue::assertPushedOn('submissions', SubmitGenerationJob::class, fn (SubmitGenerationJob $job): bool => $job->generation->is($generation));
-        Queue::assertPushed(SubmitGenerationJob::class, 1);
+        Queue::assertPushedOn('submissions', SendGenerationJob::class, fn (SendGenerationJob $job): bool => $job->generation->is($generation));
+        Queue::assertPushed(SendGenerationJob::class, 1);
     });
 
     it('charges the markup recorded at submission after the configured markup changes', function (): void {

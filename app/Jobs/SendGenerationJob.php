@@ -19,7 +19,7 @@ use Illuminate\Queue\Attributes\Tries;
  */
 #[Tries(1)]
 #[Queue('submissions')]
-final class SubmitGenerationJob implements ShouldQueue
+final class SendGenerationJob implements ShouldQueue
 {
     use Queueable;
 

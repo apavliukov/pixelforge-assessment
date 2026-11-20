@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
-use App\Jobs\SubmitGenerationJob;
+use App\Jobs\SendGenerationJob;
 use App\Models\Generation;
 use App\Models\User;
 use App\Pricing\Money;
@@ -66,7 +66,7 @@ describe('with published pricing', function (): void {
             ->and($generation->quality)->toBe(ImageQuality::High)
             ->and($generation->reference_images)->toBe(['https://example.com/one.png', 'http://example.com/two.png'])
             ->and($generation->estimate_max)->toEqual(Money::fromNano(467_343_750));
-        Queue::assertPushed(SubmitGenerationJob::class, 1);
+        Queue::assertPushed(SendGenerationJob::class, 1);
     });
 
     it('records the estimate the form was shown', function (): void {

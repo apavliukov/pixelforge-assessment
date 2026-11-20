@@ -21,8 +21,6 @@ use Inertia\Response;
 
 final class GenerationsController extends Controller
 {
-    public const string PRICING_UNAVAILABLE = "Pricing is temporarily unavailable, so generations can't be submitted right now.";
-
     private const int PER_PAGE = 15;
 
     private const ImageSize DEFAULT_SIZE = ImageSize::Square;
@@ -71,7 +69,7 @@ final class GenerationsController extends Controller
                 'generation' => 'You have '.SubmitGeneration::MAX_UNFINISHED_PER_USER.' generations in progress. Wait for one to finish.',
             ]);
         } catch (PricingUnavailableException) {
-            throw ValidationException::withMessages(['generation' => self::PRICING_UNAVAILABLE]);
+            throw ValidationException::withMessages(['generation' => PricingUnavailableException::USER_MESSAGE]);
         }
 
         return to_route('generations.index');

@@ -82,6 +82,12 @@ retries after `Retry-After`. After 10 minutes of waiting the generation fails wi
 **`503 overloaded` is retried up to 5 times with 2, 4, 8, 16, 32 second delays, then fails.**
 The docs ask for capped retries with growing delays; the numbers are our choice.
 
+**A send that must be tried again is queued as a new delayed job, not released.**
+Two things are counted while a generation waits to be sent: how long it has waited for a free slot,
+and how many times the provider failed. Releasing a job puts the same payload back, with one
+attempts counter and no room for the second number. A new job carries the failure count in its
+payload, and the wait is read from the generation itself.
+
 **A generation that fails after being accepted is not retried automatically.**
 A retry is a new generation with a new price, and the user has not agreed to it. The failure
 message says they were not charged, and submitting again is their choice.

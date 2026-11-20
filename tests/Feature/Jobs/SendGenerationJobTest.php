@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\GenerationStatus;
-use App\Jobs\SubmitGenerationJob;
+use App\Jobs\SendGenerationJob;
 use App\Models\Generation;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -15,7 +15,7 @@ beforeEach(function (): void {
 
 function runSubmitJob(Generation $generation, int $temporaryFailures = 0): void
 {
-    app()->call([new SubmitGenerationJob($generation, $temporaryFailures), 'handle']);
+    app()->call([new SendGenerationJob($generation, $temporaryFailures), 'handle']);
 }
 
 it('sends the generation and stops when the provider accepts it', function (): void {
@@ -34,7 +34,7 @@ it('dispatches a delayed copy of itself when the send asks for a retry', functio
 
     runSubmitJob($generation, 1);
 
-    Queue::assertPushedOn('submissions', SubmitGenerationJob::class, fn (SubmitGenerationJob $job): bool => $job->delay === $delay
+    Queue::assertPushedOn('submissions', SendGenerationJob::class, fn (SendGenerationJob $job): bool => $job->delay === $delay
         && $job->temporaryFailures === $temporaryFailures
         && $job->generation->is($generation));
 })->with([

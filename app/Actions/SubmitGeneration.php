@@ -8,7 +8,7 @@ use App\Dto\Generations\SubmitGenerationInput;
 use App\Enums\GenerationStatus;
 use App\Exceptions\PricingUnavailableException;
 use App\Exceptions\TooManyUnfinishedGenerationsException;
-use App\Jobs\SubmitGenerationJob;
+use App\Jobs\SendGenerationJob;
 use App\Models\Generation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -63,7 +63,7 @@ final readonly class SubmitGeneration
                 'estimate_max' => $estimate->max,
             ]);
 
-            dispatch(new SubmitGenerationJob($generation));
+            dispatch(new SendGenerationJob($generation));
 
             return $generation;
         });

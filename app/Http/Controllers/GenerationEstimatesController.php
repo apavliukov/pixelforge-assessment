@@ -27,7 +27,7 @@ final class GenerationEstimatesController extends Controller
                 referenceImageCount: $request->integer('reference_image_count'),
             );
         } catch (PricingUnavailableException) {
-            return response()->json(['message' => GenerationsController::PRICING_UNAVAILABLE], Response::HTTP_SERVICE_UNAVAILABLE);
+            return response()->json(['message' => PricingUnavailableException::USER_MESSAGE], Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         return response()->json($estimate->toDisplay());
