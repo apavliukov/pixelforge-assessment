@@ -57,6 +57,28 @@ describe('while demo sign-in is on', function (): void {
         $this->post(route('demoLogin.store', DemoAccount::Ada))->assertTooManyRequests();
     });
 
+    it('does not let a made-up forwarded address escape the limit', function (): void {
+        foreach (range(1, 10) as $attempt) {
+            $this->withHeaders(['X-Forwarded-For' => "198.51.100.{$attempt}, 203.0.113.5"])->post(route('demoLogin.store', DemoAccount::Ada));
+            auth()->logout();
+        }
+
+        $this->withHeaders(['X-Forwarded-For' => '198.51.100.99, 203.0.113.5'])
+            ->post(route('demoLogin.store', DemoAccount::Ada))
+            ->assertTooManyRequests();
+    });
+
+    it('counts visitors behind the proxy separately, by the address the proxy reports', function (): void {
+        foreach (range(1, 10) as $attempt) {
+            $this->withHeaders(['X-Forwarded-For' => '203.0.113.5'])->post(route('demoLogin.store', DemoAccount::Ada));
+            auth()->logout();
+        }
+
+        $this->withHeaders(['X-Forwarded-For' => '203.0.113.6'])
+            ->post(route('demoLogin.store', DemoAccount::Ada))
+            ->assertRedirect(route('generations.index'));
+    });
+
     it('lists the demo accounts on the sign-in page', function (): void {
         $this->get(route('login'))->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('auth/Login')

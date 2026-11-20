@@ -19,8 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Only the proxy that connects to the app is trusted. Trusting every address ('*') makes
+        // the left-most X-Forwarded-For entry the client address, and that entry is whatever the
+        // client chose to send: rate limits keyed by address could then be reset at will.
         $middleware->trustProxies(
-            at: '*',
+            at: 'REMOTE_ADDR',
             headers: SymfonyRequest::HEADER_X_FORWARDED_FOR | SymfonyRequest::HEADER_X_FORWARDED_PROTO | SymfonyRequest::HEADER_X_FORWARDED_PORT,
         );
 

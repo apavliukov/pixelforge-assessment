@@ -157,13 +157,16 @@ Neon's free plan allows about 400 hours of database uptime a month, and our queu
 database awake whenever the container is awake. So the container is allowed to sleep when idle (no
 uptime pinger): the first visit after a pause takes up to a minute, and the database quota lasts.
 
-**All proxies are trusted (`trustProxies(at: '*')`).**
+**Only the proxy that connects to the app is trusted (`trustProxies(at: 'REMOTE_ADDR')`).**
 Render's load balancer terminates HTTPS and forwards plain HTTP, passing the original scheme, host
-and client IP in `X-Forwarded-*` headers. Without trusting them the app generates `http://` asset
-URLs (blocked as mixed content) and sees every visitor as the balancer's IP, which breaks login
-throttling. The balancer's addresses are not fixed, so they cannot be listed. Cost: a client that
-could reach the container directly could spoof its IP; on Render the container is reachable only
-through the balancer.
+and client address in `X-Forwarded-*` headers. Without trusting them the app generates `http://`
+asset URLs (blocked as mixed content) and sees every visitor as the balancer's address. The
+balancer's addresses are not fixed, so they cannot be listed; the address of whoever connects is
+trusted instead. Trusting every address (`'*'`) was the first choice and was wrong: it makes the
+left-most `X-Forwarded-For` entry the client address, and a client writes that entry itself. On
+the deployed app a made-up address in the header got a rate-limit bucket of its own, so the limits
+on sign-in could be reset at will. With one trusted hop the address is the one the last proxy
+appended, which a client cannot choose.
 
 **Web server, two queue workers and scheduler share one container.**
 Render's free tier has no background workers. The start script restarts each worker in a loop. On a
