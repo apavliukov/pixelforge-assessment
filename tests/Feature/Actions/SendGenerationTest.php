@@ -92,6 +92,20 @@ describe('no room at the provider', function (): void {
         'an hour' => [['Retry-After' => '3600'], 60],
     ]);
 
+    it('waits as long again as the generation has already waited, between 5 and 60 seconds', function (int $waitedSeconds, array $headers, int $delay): void {
+        $this->freezeSecond();
+        Http::fake([CREATE_URL => providerError(429, 'concurrency_limit_exceeded', $headers)]);
+        $generation = Generation::factory()->waiting()->create(['created_at' => now()->subSeconds($waitedSeconds)]);
+
+        expect(sendGeneration($generation)?->delaySeconds)->toBe($delay);
+    })->with([
+        'just submitted' => [1, [], 5],
+        'waited 20 seconds' => [20, ['Retry-After' => '5'], 20],
+        'waited 40 seconds' => [40, ['Retry-After' => '5'], 40],
+        'waited 5 minutes' => [300, ['Retry-After' => '5'], 60],
+        'the provider asks for longer than it has waited' => [10, ['Retry-After' => '30'], 30],
+    ]);
+
     it('fails a generation that has waited 10 minutes without sending it', function (): void {
         $generation = Generation::factory()->waiting()->create(['created_at' => now()->subMinutes(10)->subSecond()]);
 

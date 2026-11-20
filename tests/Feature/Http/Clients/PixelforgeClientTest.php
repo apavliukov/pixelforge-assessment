@@ -87,3 +87,33 @@ it('fetches the usage report of a period as exact amounts per day', function ():
     Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
         && $request->url() === 'https://pixelforge.promptedit.dev/v1/usage?start_date=2026-11-01&end_date=2026-11-02');
 });
+
+it('fetches a page of generations keyed by the local identifier they were created with', function (): void {
+    fakeProviderGenerationList([
+        providerGeneration('succeeded', ['id' => 'gen_ours', 'metadata' => ['local_id' => 'local-1']]),
+        providerGeneration('queued', ['id' => 'gen_foreign', 'metadata' => []]),
+    ], []);
+
+    $page = resolve(PixelforgeClient::class)->generations();
+
+    expect(array_keys($page->generationsByLocalId))->toBe(['local-1'])
+        ->and($page->generationsByLocalId['local-1']['id'])->toBe('gen_ours')
+        ->and($page->nextCursor)->toBe('page-2');
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://pixelforge.promptedit.dev/v1/generations?limit=100');
+});
+
+it('asks for the next page with the cursor and knows the last page', function (): void {
+    fakeProviderGenerationList([]);
+
+    $page = resolve(PixelforgeClient::class)->generations('page-2');
+
+    expect($page->nextCursor)->toBeNull()
+        ->and($page->generationsByLocalId)->toBe([]);
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://pixelforge.promptedit.dev/v1/generations?limit=100&cursor=page-2');
+});
+
+it('refuses a list of generations that is not a list', function (): void {
+    Http::fake(['pixelforge.promptedit.dev/v1/generations?*' => Http::response(['object' => 'list'])]);
+
+    resolve(PixelforgeClient::class)->generations();
+})->throws(UnexpectedValueException::class);

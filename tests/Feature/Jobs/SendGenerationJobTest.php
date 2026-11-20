@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\GenerationStatus;
 use App\Jobs\SendGenerationJob;
 use App\Models\Generation;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -41,3 +42,22 @@ it('dispatches a delayed copy of itself when the send asks for a retry', functio
     'no free slot keeps the failure count' => [429, 7, 1],
     'a provider error adds to it' => [503, 4, 2],
 ]);
+
+it('may be run three times, for a run that a stopped worker left unfinished', function (): void {
+    $tries = new ReflectionClass(SendGenerationJob::class)->getAttributes(Tries::class)[0]->newInstance();
+
+    expect($tries->tries)->toBe(3);
+});
+
+it('sends nothing when it is run again after the first run already failed the generation', function (): void {
+    $generation = Generation::factory()->waiting()->create();
+    Http::fake(['pixelforge.promptedit.dev/v1/generations' => Http::response(['error' => ['code' => 'content_policy_violation', 'message' => 'No.']], 400)]);
+
+    runSubmitJob($generation);
+    // The queue loads the generation afresh for every run.
+    runSubmitJob($generation->fresh());
+
+    expect($generation->refresh()->status)->toBe(GenerationStatus::Failed);
+    Http::assertSentCount(1);
+    Queue::assertNothingPushed();
+});

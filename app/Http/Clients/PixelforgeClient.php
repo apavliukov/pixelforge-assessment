@@ -6,6 +6,7 @@ namespace App\Http\Clients;
 
 use App\Dto\OperatorReport\ReportPeriod;
 use App\Dto\Pixelforge\GenerationData;
+use App\Dto\Pixelforge\GenerationPageData;
 use App\Dto\Pixelforge\PricingData;
 use App\Dto\Pixelforge\UsageReportData;
 use App\Models\Generation;
@@ -18,6 +19,9 @@ use UnexpectedValueException;
 final readonly class PixelforgeClient
 {
     private const string BASE_URL = 'https://pixelforge.promptedit.dev/v1';
+
+    /** The most the provider returns in one page. */
+    private const int GENERATIONS_PER_PAGE = 100;
 
     /**
      * @throws ConnectionException when Pixelforge cannot be reached
@@ -66,6 +70,26 @@ final readonly class PixelforgeClient
         $response = $this->request()->get("generations/{$providerId}")->throw()->json() ?? [];
 
         return GenerationData::fromArray($response);
+    }
+
+    /**
+     * A page of the provider's generations, newest first, each with the local identifier it was
+     * created with.
+     *
+     * @param  string|null  $cursor  the previous page's cursor; null for the first page
+     *
+     * @throws ConnectionException when Pixelforge cannot be reached
+     * @throws RequestException when Pixelforge answers with an error status
+     * @throws UnexpectedValueException when the response is not a valid list of generations
+     */
+    public function generations(?string $cursor = null): GenerationPageData
+    {
+        $response = $this->request()
+            ->get('generations', array_filter(['limit' => self::GENERATIONS_PER_PAGE, 'cursor' => $cursor]))
+            ->throw()
+            ->json() ?? [];
+
+        return GenerationPageData::fromArray($response);
     }
 
     /**

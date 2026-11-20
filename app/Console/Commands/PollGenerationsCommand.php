@@ -25,7 +25,7 @@ final class PollGenerationsCommand extends Command
             $this->warn('Pixelforge is rate-limiting us; the rest waits for the next run.');
         }
 
-        $this->comment("Failed $result->abandonedCount abandoned, polled $result->polledCount of $result->dueCount due.");
+        $this->comment("Failed $result->abandonedCount abandoned, recovered $result->recoveredCount lost, polled $result->polledCount of $result->dueCount due.");
 
         return self::SUCCESS;
     }

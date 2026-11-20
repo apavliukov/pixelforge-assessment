@@ -29,15 +29,15 @@ final readonly class SendGeneration
     public const array RETRY_DELAYS_SECONDS = [2, 4, 8, 16, 32];
 
     /**
-     * Used when a 429 comes without a usable `Retry-After`. The docs give 5 s for a busy slot.
+     * The shortest wait before sending again after a 429. The docs give 5 s for a busy slot.
      */
-    private const int DEFAULT_RETRY_AFTER_SECONDS = 5;
+    private const int MIN_SLOT_WAIT_SECONDS = 5;
 
     /**
-     * A `Retry-After` beyond this is treated as this, so a bad header cannot park a send for long;
-     * the wait limit still applies.
+     * The longest wait before sending again after a 429, whatever the provider asks for: a bad
+     * `Retry-After` cannot park a send for long, and the wait limit still applies.
      */
-    private const int MAX_RETRY_AFTER_SECONDS = 60;
+    private const int MAX_SLOT_WAIT_SECONDS = 60;
 
     public function __construct(
         private PixelforgeClient $pixelforge,
@@ -106,7 +106,7 @@ final readonly class SendGeneration
         }
 
         if ($response->tooManyRequests()) {
-            return new SendRetry($this->retryAfterSeconds($response), $temporaryFailures);
+            return new SendRetry($this->retryAfterSeconds($response, $generation), $temporaryFailures);
         }
 
         if ($failureCode === FailureCode::ContentPolicyViolation) {
@@ -134,15 +134,18 @@ final readonly class SendGeneration
         return new SendRetry($delay, $temporaryFailures + 1);
     }
 
-    private function retryAfterSeconds(Response $response): int
+    /**
+     * How long to wait before sending again after a 429: as long as the generation has already
+     * waited, so the gap doubles while the provider stays full, and never less than the provider
+     * asked for. A generation that waits for minutes then costs one request a minute, not twelve.
+     */
+    private function retryAfterSeconds(Response $response, Generation $generation): int
     {
         $retryAfter = $response->header('Retry-After');
+        $askedFor = is_numeric($retryAfter) ? (int) $retryAfter : 0;
+        $alreadyWaited = (int) $generation->created_at->diffInSeconds(now());
 
-        if (! is_numeric($retryAfter)) {
-            return self::DEFAULT_RETRY_AFTER_SECONDS;
-        }
-
-        return max(1, min(self::MAX_RETRY_AFTER_SECONDS, (int) $retryAfter));
+        return min(self::MAX_SLOT_WAIT_SECONDS, max(self::MIN_SLOT_WAIT_SECONDS, $askedFor, $alreadyWaited));
     }
 
     private function errorMessage(Response $response): string

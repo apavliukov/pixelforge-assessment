@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Casts\MoneyCast;
 use App\Dto\Pixelforge\GenerationData;
 use App\Dto\Pixelforge\TokenUsage;
+use App\Enums\FailureCode;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
@@ -95,6 +96,17 @@ final class Generation extends Model
      * limit; the margin leaves a send in progress time to finish.
      */
     public const int ABANDONED_AFTER_MINUTES = self::WAIT_LIMIT_MINUTES + 5;
+
+    /**
+     * How far back a local failure is still checked against the provider's list of generations.
+     */
+    public const int VERIFY_LOCAL_FAILURES_FOR_HOURS = 24;
+
+    /**
+     * How long after a local failure the provider's list is read. A request we gave up on may
+     * still be on its way; asking at once could miss it, and the check is made only once.
+     */
+    public const int VERIFY_LOCAL_FAILURES_AFTER_MINUTES = 2;
 
     /**
      * @return BelongsTo<User, $this>
@@ -191,6 +203,24 @@ final class Generation extends Model
                     ->where('created_at', '<', $youngSince)
                     ->where('provider_synced_at', '<', now()->subMinutes(self::POLL_OLD_AFTER_MINUTES))))
             ->oldest('provider_synced_at');
+    }
+
+    /**
+     * Local failures of the last day, but not of the last two minutes, after which the provider
+     * may hold the generation all the same, and about which it has not been asked yet. A failure
+     * the provider decided itself is not among them.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function unverifiedLocalFailures(Builder $query): void
+    {
+        $query->where('status', GenerationStatus::Failed)
+            ->whereNull('provider_id')
+            ->whereNull('provider_synced_at')
+            ->whereIn('error_code', [FailureCode::ProviderUnavailable, FailureCode::WaitTimeout, FailureCode::SubmissionRejected])
+            ->where('completed_at', '>=', now()->subHours(self::VERIFY_LOCAL_FAILURES_FOR_HOURS))
+            ->where('completed_at', '<=', now()->subMinutes(self::VERIFY_LOCAL_FAILURES_AFTER_MINUTES));
     }
 
     /**

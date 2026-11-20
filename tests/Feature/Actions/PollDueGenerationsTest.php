@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\PollDueGenerations;
 use App\Dto\Generations\PollingResult;
+use App\Enums\FailureCode;
 use App\Enums\GenerationStatus;
 use App\Models\Generation;
 use App\Pricing\Money;
@@ -32,6 +33,16 @@ function fakeRetrieve(string $status): void
 function pollDueGenerations(): PollingResult
 {
     return resolve(PollDueGenerations::class)();
+}
+
+/**
+ * A generation that failed on our side long enough ago to be checked against the provider.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function localFailure(FailureCode $code = FailureCode::ProviderUnavailable, array $attributes = []): Generation
+{
+    return Generation::factory()->failedLocally($code)->create(['completed_at' => now()->subMinutes(3), ...$attributes]);
 }
 
 function acceptedGeneration(int $submittedMinutesAgo, int $syncedSecondsAgo): Generation
@@ -144,5 +155,170 @@ describe('waiting generations', function (): void {
         pollDueGenerations();
 
         expect($generation->refresh()->status)->toBe(GenerationStatus::Waiting);
+    });
+});
+
+describe('local failures the provider may hold', function (): void {
+    it('recovers a generation whose create response was lost', function (FailureCode $code): void {
+        $generation = localFailure($code);
+        fakeProviderGenerationList([
+            providerGeneration('queued', ['id' => 'gen_other', 'metadata' => ['local_id' => 'someone-else']]),
+            providerGeneration('succeeded', ['id' => 'gen_lost', 'metadata' => ['local_id' => $generation->id]]),
+        ]);
+
+        $result = pollDueGenerations();
+
+        $generation->refresh();
+        expect($result->recoveredCount)->toBe(1)
+            ->and($generation->status)->toBe(GenerationStatus::Succeeded)
+            ->and($generation->provider_id)->toBe('gen_lost')
+            ->and($generation->error_code)->toBeNull()
+            ->and($generation->provider_cost?->isZero())->toBeFalse()
+            ->and($generation->user_charge?->isZero())->toBeFalse()
+            ->and($generation->output_tokens)->not->toBeNull();
+    })->with([FailureCode::ProviderUnavailable, FailureCode::WaitTimeout, FailureCode::SubmissionRejected]);
+
+    it('asks once about a generation the provider never received', function (): void {
+        $generation = localFailure();
+        fakeProviderGenerationList([providerGeneration('succeeded', ['id' => 'gen_other', 'metadata' => ['local_id' => 'someone-else']])]);
+
+        $result = pollDueGenerations();
+        pollDueGenerations();
+
+        $generation->refresh();
+        expect($result->recoveredCount)->toBe(0)
+            ->and($generation->status)->toBe(GenerationStatus::Failed)
+            ->and($generation->error_code)->toBe('provider_unavailable')
+            ->and($generation->provider_synced_at)->not->toBeNull();
+        Http::assertSentCount(1);
+    });
+
+    it('does not ask the provider when there is nothing to check', function (Closure $existing): void {
+        $existing();
+
+        pollDueGenerations();
+
+        Http::assertNothingSent();
+    })->with([
+        'no generations at all' => [fn (): null => null],
+        'refused for its content' => [fn (): Generation => localFailure(FailureCode::ContentPolicyViolation)],
+        'refused for the daily limit' => [fn (): Generation => localFailure(FailureCode::DailyLimitExceeded)],
+        'failed more than 24 hours ago' => [fn (): Generation => localFailure(attributes: ['completed_at' => now()->subHours(24)->subSecond()])],
+        'failed less than two minutes ago' => [fn (): Generation => localFailure(attributes: ['completed_at' => now()->subMinutes(2)->addSecond()])],
+        'already checked' => [fn (): Generation => localFailure(attributes: ['provider_synced_at' => now()->subMinute()])],
+        'failed by the provider' => [fn (): Generation => localFailure(attributes: ['provider_id' => 'gen_known'])],
+    ]);
+
+    it('checks again next time when the provider cannot be asked', function (int $status): void {
+        $generation = localFailure();
+        Http::fake(['pixelforge.promptedit.dev/v1/generations?*' => Http::sequence()
+            ->push(['error' => ['code' => 'overloaded']], $status)
+            ->push(providerGenerationPage([providerGeneration('succeeded', ['id' => 'gen_lost', 'metadata' => ['local_id' => $generation->id]])]))]);
+
+        pollDueGenerations();
+
+        expect($generation->refresh()->status)->toBe(GenerationStatus::Failed)
+            ->and($generation->provider_synced_at)->toBeNull();
+
+        pollDueGenerations();
+
+        expect($generation->refresh()->status)->toBe(GenerationStatus::Succeeded);
+    })->with(['overloaded' => 503, 'unauthorised' => 401]);
+
+    it('stops the whole run when the provider rate-limits the list', function (): void {
+        localFailure();
+        acceptedGeneration(submittedMinutesAgo: 3, syncedSecondsAgo: 90);
+        Http::fake(['pixelforge.promptedit.dev/v1/generations?*' => Http::response(['error' => ['code' => 'rate_limit_exceeded']], 429)]);
+
+        $result = pollDueGenerations();
+
+        expect($result->stoppedByRateLimit)->toBeTrue()
+            ->and($result->polledCount)->toBe(0);
+        Http::assertSentCount(1);
+    });
+
+    it('reads the next page when the generation is not on the first', function (): void {
+        $generation = localFailure();
+        fakeProviderGenerationList(
+            [providerGeneration('succeeded', ['id' => 'gen_newer', 'metadata' => ['local_id' => 'someone-else']])],
+            [providerGeneration('succeeded', ['id' => 'gen_lost', 'metadata' => ['local_id' => $generation->id]])],
+        );
+
+        pollDueGenerations();
+
+        expect($generation->refresh()->status)->toBe(GenerationStatus::Succeeded);
+        $urls = Http::recorded()->map(fn (array $pair): string => $pair[0]->url())->all();
+        expect($urls)->toBe([
+            'https://pixelforge.promptedit.dev/v1/generations?limit=100',
+            'https://pixelforge.promptedit.dev/v1/generations?limit=100&cursor=page-2',
+        ]);
+    });
+
+    it('reads no further once every generation is found', function (): void {
+        $generation = localFailure();
+        fakeProviderGenerationList(
+            [providerGeneration('succeeded', ['id' => 'gen_lost', 'metadata' => ['local_id' => $generation->id]])],
+            [],
+        );
+
+        pollDueGenerations();
+
+        Http::assertSentCount(1);
+    });
+
+    it('reads at most five pages, then stops looking', function (): void {
+        $generation = localFailure();
+        fakeProviderGenerationList([], [], [], [], [], []);
+
+        pollDueGenerations();
+
+        expect($generation->refresh()->provider_synced_at)->not->toBeNull();
+        Http::assertSentCount(5);
+    });
+
+    it('leaves a generation unchecked when the provider holds it in a state that cannot be read', function (): void {
+        $generation = localFailure();
+        fakeProviderGenerationList([providerGeneration('succeeded', ['id' => 'gen_lost', 'usage' => null, 'metadata' => ['local_id' => $generation->id]])]);
+
+        $result = pollDueGenerations();
+
+        expect($result->recoveredCount)->toBe(0)
+            ->and($generation->refresh()->status)->toBe(GenerationStatus::Failed)
+            ->and($generation->provider_synced_at)->toBeNull();
+    });
+
+    it('checks a generation it failed for waiting too long, two minutes after failing it', function (): void {
+        $generation = Generation::factory()->waiting()->create(['created_at' => now()->subMinutes(16)]);
+        fakeProviderGenerationList([providerGeneration('processing', ['id' => 'gen_lost', 'metadata' => ['local_id' => $generation->id]])]);
+
+        $failing = pollDueGenerations();
+
+        expect($failing->abandonedCount)->toBe(1)
+            ->and($failing->recoveredCount)->toBe(0)
+            ->and($generation->refresh()->status)->toBe(GenerationStatus::Failed);
+        Http::assertNothingSent();
+
+        $this->travel(2)->minutes();
+        $checking = pollDueGenerations();
+
+        expect($checking->recoveredCount)->toBe(1)
+            ->and($generation->refresh()->status)->toBe(GenerationStatus::Processing);
+    });
+
+    it('asks for the list first and keeps the run within 20 requests', function (): void {
+        localFailure();
+        fakeProviderGenerationList([]);
+        fakeRetrieve('processing');
+
+        foreach (range(1, 25) as $number) {
+            acceptedGeneration(submittedMinutesAgo: 3, syncedSecondsAgo: 60 + $number);
+        }
+
+        $result = pollDueGenerations();
+
+        $urls = Http::recorded()->map(fn (array $pair): string => $pair[0]->url());
+        expect($urls)->toHaveCount(20)
+            ->and($urls->first())->toBe('https://pixelforge.promptedit.dev/v1/generations?limit=100')
+            ->and($result->polledCount)->toBe(19);
     });
 });

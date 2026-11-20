@@ -42,6 +42,13 @@ final readonly class ApplyProviderState
             $generation->provider_synced_at = now();
 
             if ($isLocalFailure) {
+                Log::notice('A generation that failed locally is held by Pixelforge; its state replaces the failure.', [
+                    'generation' => $generation->id,
+                    'provider_id' => $state->id,
+                    'local_error' => $generation->error_code,
+                    'provider_status' => $state->status->value,
+                ]);
+
                 $generation->clearFailure();
             }
 

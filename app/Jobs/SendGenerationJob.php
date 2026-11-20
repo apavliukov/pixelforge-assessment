@@ -16,8 +16,12 @@ use Illuminate\Queue\Attributes\Tries;
  * Runs one send attempt. When the attempt asks to be retried, the job dispatches a delayed copy
  * of itself instead of being released back to the queue: waiting for a free slot and retrying a
  * provider error are counted separately, which a single attempts counter cannot do.
+ *
+ * The three attempts are for an attempt that never ends: a worker stopped in the middle of a send
+ * leaves the job to be offered again. Running it again is safe, because every send of a generation
+ * carries the same idempotency key.
  */
-#[Tries(1)]
+#[Tries(3)]
 #[Queue('submissions')]
 final class SendGenerationJob implements ShouldQueue
 {

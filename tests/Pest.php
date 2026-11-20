@@ -172,3 +172,31 @@ function fakeUsageReport(array $days): void
         'total' => providerUsageFigures($generations, $cost->toDecimalString()),
     ])]);
 }
+
+/**
+ * One page of the provider's list of generations, as it answers.
+ *
+ * @param  list<array<string, mixed>>  $generations
+ * @return array<string, mixed>
+ */
+function providerGenerationPage(array $generations, ?string $nextCursor = null): array
+{
+    return ['object' => 'list', 'data' => $generations, 'has_more' => $nextCursor !== null, 'next_cursor' => $nextCursor];
+}
+
+/**
+ * Fakes the provider's list of generations, one argument per page in the order they are asked
+ * for. Each page but the last answers with a cursor named after the next page's number.
+ *
+ * @param  list<array<string, mixed>>  ...$pages
+ */
+function fakeProviderGenerationList(array ...$pages): void
+{
+    $sequence = Http::sequence();
+
+    foreach ($pages as $number => $generations) {
+        $sequence->push(providerGenerationPage($generations, $number === count($pages) - 1 ? null : 'page-'.($number + 2)));
+    }
+
+    Http::fake(['pixelforge.promptedit.dev/v1/generations?*' => $sequence]);
+}
