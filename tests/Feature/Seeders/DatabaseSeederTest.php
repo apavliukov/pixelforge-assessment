@@ -10,9 +10,9 @@ it('creates two demo users and one demo operator', function (): void {
     $this->seed(DatabaseSeeder::class);
 
     expect(User::query()->orderBy('email')->get(['name', 'email', 'is_operator', 'demo_account'])->toArray())->toBe([
-        ['name' => 'Ada (demo user)', 'email' => 'ada@example.com', 'is_operator' => false, 'demo_account' => 'ada'],
-        ['name' => 'Bob (demo user)', 'email' => 'bob@example.com', 'is_operator' => false, 'demo_account' => 'bob'],
-        ['name' => 'Operator (demo)', 'email' => 'operator@example.com', 'is_operator' => true, 'demo_account' => 'operator'],
+        ['name' => 'Ada Demo', 'email' => 'ada@example.com', 'is_operator' => false, 'demo_account' => 'ada'],
+        ['name' => 'Bob Demo', 'email' => 'bob@example.com', 'is_operator' => false, 'demo_account' => 'bob'],
+        ['name' => 'Operator Demo', 'email' => 'operator@example.com', 'is_operator' => true, 'demo_account' => 'operator'],
     ]);
 });
 

@@ -18,9 +18,9 @@ enum DemoAccount: string
     public function label(): string
     {
         return match ($this) {
-            self::Ada => 'Ada (demo user)',
-            self::Bob => 'Bob (demo user)',
-            self::Operator => 'Operator (demo)',
+            self::Ada => 'Ada Demo',
+            self::Bob => 'Bob Demo',
+            self::Operator => 'Operator Demo',
         };
     }
 

@@ -61,9 +61,9 @@ describe('while demo sign-in is on', function (): void {
         $this->get(route('login'))->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('auth/Login')
             ->where('demoAccounts', [
-                ['key' => 'ada', 'name' => 'Ada (demo user)', 'description' => 'Generate images and see your own history and charges.'],
-                ['key' => 'bob', 'name' => 'Bob (demo user)', 'description' => 'Generate images and see your own history and charges.'],
-                ['key' => 'operator', 'name' => 'Operator (demo)', 'description' => 'The operator report: user charges, provider costs and profit, reconciled with Pixelforge.'],
+                ['key' => 'ada', 'name' => 'Ada Demo', 'description' => 'Generate images and see your own history and charges.'],
+                ['key' => 'bob', 'name' => 'Bob Demo', 'description' => 'Generate images and see your own history and charges.'],
+                ['key' => 'operator', 'name' => 'Operator Demo', 'description' => 'The operator report: user charges, provider costs and profit, reconciled with Pixelforge.'],
             ]));
     });
 
