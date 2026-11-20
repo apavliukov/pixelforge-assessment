@@ -8,11 +8,11 @@ use Illuminate\Support\Facades\Http;
 it('polls and prints a summary', function (): void {
     Http::preventStrayRequests();
     Generation::factory()->waiting()->create(['created_at' => now()->subMinutes(16)]);
-    $lost = Generation::factory()->failedLocally()->create(['completed_at' => now()->subMinutes(3)]);
-    fakeProviderGenerationList([providerGeneration('processing', ['id' => 'gen_lost', 'metadata' => ['local_id' => $lost->id]])]);
+    $heldByProvider = localFailure();
+    fakeProviderGenerationList([providerGeneration('processing', ['id' => 'gen_held', 'metadata' => ['local_id' => $heldByProvider->id]])]);
 
     $this->artisan('generations:poll')
-        ->expectsOutput('Failed 1 abandoned, recovered 1 lost, polled 0 of 0 due.')
+        ->expectsOutput('Failed 1 abandoned, found 1 local failures at Pixelforge, polled 0 of 0 due.')
         ->assertSuccessful();
 });
 

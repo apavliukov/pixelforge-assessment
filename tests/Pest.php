@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Pixelforge\GenerationData;
+use App\Enums\FailureCode;
 use App\Models\Generation;
 use App\Pricing\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -174,6 +175,24 @@ function fakeUsageReport(array $days): void
 }
 
 /**
+ * The provider's list of generations, with whatever query it is asked with.
+ */
+const PROVIDER_GENERATION_LIST_URL = 'pixelforge.promptedit.dev/v1/generations?*';
+
+/**
+ * A generation that failed on our side long enough ago to be checked against the provider.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function localFailure(FailureCode $code = FailureCode::ProviderUnavailable, array $attributes = []): Generation
+{
+    return Generation::factory()->failedLocally($code)->create([
+        'completed_at' => now()->subMinutes(Generation::CHECK_LOCAL_FAILURES_AFTER_MINUTES + 1),
+        ...$attributes,
+    ]);
+}
+
+/**
  * One page of the provider's list of generations, as it answers.
  *
  * @param  list<array<string, mixed>>  $generations
@@ -198,5 +217,5 @@ function fakeProviderGenerationList(array ...$pages): void
         $sequence->push(providerGenerationPage($generations, $number === count($pages) - 1 ? null : 'page-'.($number + 2)));
     }
 
-    Http::fake(['pixelforge.promptedit.dev/v1/generations?*' => $sequence]);
+    Http::fake([PROVIDER_GENERATION_LIST_URL => $sequence]);
 }

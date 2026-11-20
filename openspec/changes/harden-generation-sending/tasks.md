@@ -9,11 +9,12 @@
 
 ## 3. Lost create response
 
-- [x] 3.1 Add `PixelforgeClient::generations()` returning a page of provider states and the next cursor, with tests against a faked response (cursor passed, items parsed, last page) and verify they pass
-- [x] 3.2 Add the `unverifiedLocalFailures` scope with tests of what it includes and leaves out (the three codes, the two refused codes, older than 24 hours, already checked, has a provider identifier) and verify they pass
+- [x] 3.1 Add `PixelforgeClient::generations()` returning a page of the provider's generations by local identifier, as received, and the next cursor, with tests against a faked response (cursor passed, items keyed, last page) and verify they pass
+- [x] 3.2 Add the `uncheckedLocalFailures` scope with tests of what it includes and leaves out (every code, older than 24 hours, younger than two minutes, already checked, has a provider identifier) and verify they pass
 - [x] 3.3 Write tests for every scenario of "A local failure that may have reached the provider is checked against it" and verify they fail
-- [x] 3.4 Add the step to `PollDueGenerations`, `recoveredCount` to `PollingResult` and the command's summary line; verify the tests from 3.3 and the existing polling tests pass
+- [x] 3.4 Add the step to `PollDueGenerations`, `foundAtProviderCount` to `PollingResult` and the command's summary line; verify the tests from 3.3 and the existing polling tests pass
 - [x] 3.5 Check a local failure only once it is two minutes old, and log when a local failure is replaced by the provider's state; test the delay
+- [x] 3.6 After review: check every local failure whatever its code, read up to ten pages, report the number due even when rate limited, and test the log line
 
 ## 4. Wrap-up
 

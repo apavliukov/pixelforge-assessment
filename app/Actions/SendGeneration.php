@@ -106,7 +106,7 @@ final readonly class SendGeneration
         }
 
         if ($response->tooManyRequests()) {
-            return new SendRetry($this->retryAfterSeconds($response, $generation), $temporaryFailures);
+            return new SendRetry($this->slotWaitSeconds($response, $generation), $temporaryFailures);
         }
 
         if ($failureCode === FailureCode::ContentPolicyViolation) {
@@ -136,10 +136,11 @@ final readonly class SendGeneration
 
     /**
      * How long to wait before sending again after a 429: as long as the generation has already
-     * waited, so the gap doubles while the provider stays full, and never less than the provider
-     * asked for. A generation that waits for minutes then costs one request a minute, not twelve.
+     * waited, so the gap doubles while the provider stays full, and not less than the provider
+     * asked for, up to the longest wait. A generation that waits for minutes then costs one
+     * request a minute, not twelve.
      */
-    private function retryAfterSeconds(Response $response, Generation $generation): int
+    private function slotWaitSeconds(Response $response, Generation $generation): int
     {
         $retryAfter = $response->header('Retry-After');
         $askedFor = is_numeric($retryAfter) ? (int) $retryAfter : 0;

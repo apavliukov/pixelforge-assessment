@@ -62,7 +62,8 @@ billed. Leaving it failed would hide a real provider cost and the report would n
 local failure is replaced by any state the provider later reports. Cost: in that rare case a user
 sees "failed" turn into "succeeded" with a charge. A webhook is not the only way that state
 arrives: polling cannot ask about a generation that has no provider identifier, so after such a
-failure it reads the provider's list of generations once and looks for ours by `metadata.local_id`. It
+failure of any kind it reads the provider's list of generations once and looks for ours by
+`metadata.local_id`. It
 waits two minutes first, because it asks only once and the request it gave up on may still arrive.
 
 **An accepted generation is never failed by our own timeout.**
@@ -80,8 +81,8 @@ limit one user blocks everyone.
 
 **When the provider's three concurrency slots are taken, the generation waits in our queue.**
 The limit is shared by all users of the app, so it is a normal situation, not an error. The job
-sends again after waiting as long as the generation has already waited, between 5 and 60 seconds
-and never less than `Retry-After`: retrying every 5 seconds would cost 12 requests a minute per
+sends again after the longer of the time the generation has already waited and `Retry-After`, kept
+between 5 and 60 seconds: retrying every 5 seconds would cost 12 requests a minute per
 waiting generation, and five of them would use up the provider's 60 a minute for the whole app.
 After 10 minutes of waiting the generation fails with a clear message.
 

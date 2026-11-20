@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Casts\MoneyCast;
 use App\Dto\Pixelforge\GenerationData;
 use App\Dto\Pixelforge\TokenUsage;
-use App\Enums\FailureCode;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
@@ -100,13 +99,13 @@ final class Generation extends Model
     /**
      * How far back a local failure is still checked against the provider's list of generations.
      */
-    public const int VERIFY_LOCAL_FAILURES_FOR_HOURS = 24;
+    public const int CHECK_LOCAL_FAILURES_FOR_HOURS = 24;
 
     /**
      * How long after a local failure the provider's list is read. A request we gave up on may
      * still be on its way; asking at once could miss it, and the check is made only once.
      */
-    public const int VERIFY_LOCAL_FAILURES_AFTER_MINUTES = 2;
+    public const int CHECK_LOCAL_FAILURES_AFTER_MINUTES = 2;
 
     /**
      * @return BelongsTo<User, $this>
@@ -206,21 +205,21 @@ final class Generation extends Model
     }
 
     /**
-     * Local failures of the last day, but not of the last two minutes, after which the provider
-     * may hold the generation all the same, and about which it has not been asked yet. A failure
-     * the provider decided itself is not among them.
+     * Local failures that have not been checked against the provider yet and are due for it:
+     * old enough for a request we gave up on to have arrived, and not older than the check
+     * reaches back. Every local failure qualifies, whatever its code: after any of them an
+     * earlier attempt may have been accepted without our learning of it.
      *
      * @param  Builder<self>  $query
      */
     #[Scope]
-    protected function unverifiedLocalFailures(Builder $query): void
+    protected function uncheckedLocalFailures(Builder $query): void
     {
         $query->where('status', GenerationStatus::Failed)
             ->whereNull('provider_id')
             ->whereNull('provider_synced_at')
-            ->whereIn('error_code', [FailureCode::ProviderUnavailable, FailureCode::WaitTimeout, FailureCode::SubmissionRejected])
-            ->where('completed_at', '>=', now()->subHours(self::VERIFY_LOCAL_FAILURES_FOR_HOURS))
-            ->where('completed_at', '<=', now()->subMinutes(self::VERIFY_LOCAL_FAILURES_AFTER_MINUTES));
+            ->where('completed_at', '>=', now()->subHours(self::CHECK_LOCAL_FAILURES_FOR_HOURS))
+            ->where('completed_at', '<=', now()->subMinutes(self::CHECK_LOCAL_FAILURES_AFTER_MINUTES));
     }
 
     /**

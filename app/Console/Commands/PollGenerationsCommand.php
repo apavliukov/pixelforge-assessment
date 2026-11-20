@@ -14,7 +14,7 @@ use Illuminate\Console\Command;
  * the queue workers.
  */
 #[Signature('generations:poll')]
-#[Description('Ask Pixelforge about unfinished generations with no recent news, and fail generations whose send was lost')]
+#[Description('Fail generations whose send was lost, check local failures against Pixelforge, and ask it about unfinished generations with no recent news')]
 final class PollGenerationsCommand extends Command
 {
     public function handle(PollDueGenerations $pollDueGenerations): int
@@ -25,7 +25,7 @@ final class PollGenerationsCommand extends Command
             $this->warn('Pixelforge is rate-limiting us; the rest waits for the next run.');
         }
 
-        $this->comment("Failed $result->abandonedCount abandoned, recovered $result->recoveredCount lost, polled $result->polledCount of $result->dueCount due.");
+        $this->comment("Failed $result->abandonedCount abandoned, found $result->foundAtProviderCount local failures at Pixelforge, polled $result->polledCount of $result->dueCount due.");
 
         return self::SUCCESS;
     }

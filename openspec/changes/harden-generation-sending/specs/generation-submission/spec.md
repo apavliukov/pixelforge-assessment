@@ -30,9 +30,9 @@ before it finishes, as when its worker is stopped, SHALL be run again, up to thr
 ### Requirement: A generation waits while the provider has no room
 
 When the provider answers `429` with `concurrency_limit_exceeded` or `rate_limit_exceeded`, the
-system SHALL keep the generation waiting and send it again later. Each wait SHALL be as long as the
-generation has already waited since submission, but no shorter than 5 seconds, no longer than 60
-seconds, and never shorter than the delay given in `Retry-After`. A generation that has waited 10
+system SHALL keep the generation waiting and send it again later. Each wait SHALL be the longer of the time the generation has already waited since submission and the
+delay given in `Retry-After`, but no shorter than 5 seconds and no longer than 60 seconds: the
+60-second limit holds even when `Retry-After` asks for more. A generation that has waited 10
 minutes since submission SHALL fail with the code `wait_timeout`.
 
 #### Scenario: All provider slots are taken
@@ -53,6 +53,11 @@ minutes since submission SHALL fail with the code `wait_timeout`.
 #### Scenario: A long wait
 
 - **WHEN** the provider answers `429` to a generation submitted 5 minutes ago
+- **THEN** the generation is sent again 60 seconds later
+
+#### Scenario: The provider asks for more than a minute
+
+- **WHEN** the provider answers `429` with `Retry-After: 3600`
 - **THEN** the generation is sent again 60 seconds later
 
 #### Scenario: The wait limit is reached

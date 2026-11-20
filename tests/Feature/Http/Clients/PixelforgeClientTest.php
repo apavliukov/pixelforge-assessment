@@ -113,7 +113,7 @@ it('asks for the next page with the cursor and knows the last page', function ()
 });
 
 it('refuses a list of generations that is not a list', function (): void {
-    Http::fake(['pixelforge.promptedit.dev/v1/generations?*' => Http::response(['object' => 'list'])]);
+    Http::fake([PROVIDER_GENERATION_LIST_URL => Http::response(['object' => 'list'])]);
 
     resolve(PixelforgeClient::class)->generations();
 })->throws(UnexpectedValueException::class);

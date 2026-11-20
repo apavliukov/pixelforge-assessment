@@ -9,7 +9,6 @@ use App\Dto\Pixelforge\GenerationData;
 use App\Enums\FailureCode;
 use App\Http\Clients\PixelforgeClient;
 use App\Models\Generation;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
@@ -29,10 +28,11 @@ final readonly class PollDueGenerations
     public const int MAX_REQUESTS_PER_RUN = 20;
 
     /**
-     * Pages of the provider's list read for one check: 500 generations, the provider's daily
-     * limit, so a failure from the last 24 hours cannot lie beyond them.
+     * Pages of the provider's list read for one check. At `PixelforgeClient::GENERATIONS_PER_PAGE`
+     * each they hold 1,000 generations, two days of the provider's daily limit of 500: the check
+     * reaches back 24 hours, which can span two of the provider's days.
      */
-    private const int MAX_LIST_PAGES = 5;
+    private const int MAX_LIST_PAGES = 10;
 
     public function __construct(
         private PixelforgeClient $pixelforge,
@@ -48,14 +48,16 @@ final readonly class PollDueGenerations
             ($this->failGenerationLocally)($generation, FailureCode::WaitTimeout);
         }
 
-        ['requests' => $listRequests, 'recovered' => $recoveredCount, 'rateLimited' => $stoppedByRateLimit] = $this->verifyLocalFailures();
+        ['requests' => $listRequests, 'found' => $foundAtProviderCount, 'rateLimited' => $stoppedByRateLimit] = $this->checkLocalFailures();
 
-        $due = $stoppedByRateLimit
-            ? new Collection
-            : Generation::query()->dueForPolling()->limit(self::MAX_REQUESTS_PER_RUN - $listRequests)->get();
+        $due = Generation::query()->dueForPolling()->limit(self::MAX_REQUESTS_PER_RUN - $listRequests)->get();
         $polledCount = 0;
 
         foreach ($due as $generation) {
+            if ($stoppedByRateLimit) {
+                break;
+            }
+
             $polledCount++;
 
             try {
@@ -75,7 +77,7 @@ final readonly class PollDueGenerations
 
         return new PollingResult(
             abandonedCount: $abandoned->count(),
-            recoveredCount: $recoveredCount,
+            foundAtProviderCount: $foundAtProviderCount,
             dueCount: $due->count(),
             polledCount: $polledCount,
             stoppedByRateLimit: $stoppedByRateLimit,
@@ -86,27 +88,27 @@ final readonly class PollDueGenerations
      * A send that failed on our side may still have reached the provider: its answer was lost or
      * could not be read. Polling cannot see such a generation, which has no provider identifier,
      * so the provider's own list is searched for our identifiers. Whatever it holds replaces the
-     * local failure; what it does not hold is marked as asked about and not looked for again.
+     * local failure; what it does not hold is marked as checked and not looked for again.
      *
      * Nothing is marked unless the list was read as far as it needed to be, so a failed request
-     * leaves the check for the next run. A failure is not looked at in its first two minutes: the
+     * leaves the check for the next run. A failure is not checked in its first two minutes: the
      * request we gave up on may still be on its way to the provider.
      *
      * A generation the provider holds in a state that cannot be read is left unchecked on purpose:
      * it is looked at again every run until the state can be read or the day is over.
      *
-     * @return array{requests: int, recovered: int, rateLimited: bool}
+     * @return array{requests: int, found: int, rateLimited: bool} requests made, local failures the provider holds, and whether the provider answered 429
      */
-    private function verifyLocalFailures(): array
+    private function checkLocalFailures(): array
     {
-        $unverified = array_flip(Generation::query()->unverifiedLocalFailures()->pluck('id')->all());
+        $uncheckedIds = array_flip(Generation::query()->uncheckedLocalFailures()->pluck('id')->all());
 
-        if ($unverified === []) {
-            return ['requests' => 0, 'recovered' => 0, 'rateLimited' => false];
+        if ($uncheckedIds === []) {
+            return ['requests' => 0, 'found' => 0, 'rateLimited' => false];
         }
 
         $requests = 0;
-        $recovered = 0;
+        $found = 0;
         $cursor = null;
 
         try {
@@ -114,12 +116,12 @@ final readonly class PollDueGenerations
                 $requests++;
                 $page = $this->pixelforge->generations($cursor);
 
-                foreach (array_intersect_key($page->generationsByLocalId, $unverified) as $localId => $held) {
-                    unset($unverified[$localId]);
+                foreach (array_intersect_key($page->generationsByLocalId, $uncheckedIds) as $localId => $providerGeneration) {
+                    unset($uncheckedIds[$localId]);
 
                     try {
-                        ($this->applyProviderState)(GenerationData::fromArray($held));
-                        $recovered++;
+                        ($this->applyProviderState)(GenerationData::fromArray($providerGeneration));
+                        $found++;
                     } catch (UnexpectedValueException $exception) {
                         Log::warning('Pixelforge holds a generation that failed locally, but its state could not be read.', [
                             'generation' => $localId,
@@ -129,7 +131,7 @@ final readonly class PollDueGenerations
                 }
 
                 $cursor = $page->nextCursor;
-            } while ($cursor !== null && $unverified !== [] && $requests < self::MAX_LIST_PAGES);
+            } while ($cursor !== null && $uncheckedIds !== [] && $requests < self::MAX_LIST_PAGES);
         } catch (RequestException|ConnectionException|UnexpectedValueException $exception) {
             $response = $exception instanceof RequestException ? $exception->response : null;
 
@@ -137,12 +139,12 @@ final readonly class PollDueGenerations
                 'reason' => $response instanceof Response ? "HTTP {$response->status()}" : $exception->getMessage(),
             ]);
 
-            return ['requests' => $requests, 'recovered' => $recovered, 'rateLimited' => (bool) $response?->tooManyRequests()];
+            return ['requests' => $requests, 'found' => $found, 'rateLimited' => (bool) $response?->tooManyRequests()];
         }
 
-        Generation::query()->unverifiedLocalFailures()->whereKey(array_keys($unverified))->update(['provider_synced_at' => now()]);
+        Generation::query()->uncheckedLocalFailures()->whereKey(array_keys($uncheckedIds))->update(['provider_synced_at' => now()]);
 
-        return ['requests' => $requests, 'recovered' => $recovered, 'rateLimited' => false];
+        return ['requests' => $requests, 'found' => $found, 'rateLimited' => false];
     }
 
     /**

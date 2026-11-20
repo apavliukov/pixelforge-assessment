@@ -18,10 +18,9 @@ use UnexpectedValueException;
 
 final readonly class PixelforgeClient
 {
+    /** The most the provider returns in one page of its generations. */
+    public const int GENERATIONS_PER_PAGE = 100;
     private const string BASE_URL = 'https://pixelforge.promptedit.dev/v1';
-
-    /** The most the provider returns in one page. */
-    private const int GENERATIONS_PER_PAGE = 100;
 
     /**
      * @throws ConnectionException when Pixelforge cannot be reached

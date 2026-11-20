@@ -41,7 +41,7 @@ A user's own generations, newest first.
 _Avoid_: Feed, gallery, list
 
 **Local failure**:
-A failure decided by this app before the provider accepted the generation. It is provisional: any state reported by the provider for that generation replaces it.
+A failure decided by this app while it knew of no acceptance by the provider. It is provisional: the provider may have accepted the generation all the same, and any state it reports for that generation replaces the failure.
 _Avoid_: Timeout, internal failure
 
 **Provider state**:

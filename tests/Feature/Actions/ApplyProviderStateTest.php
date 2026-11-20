@@ -200,3 +200,28 @@ describe('local failures', function (): void {
             ->and($generation->completed_at)->toBeNull();
     });
 });
+
+describe('the log', function (): void {
+    it('says so when the provider\'s state replaces a local failure', function (): void {
+        Log::spy();
+        $generation = Generation::factory()->failedLocally()->create();
+
+        resolve(ApplyProviderState::class)(GenerationData::fromArray(providerGeneration('succeeded', ['id' => 'gen_held', 'metadata' => ['local_id' => $generation->id]])));
+
+        Log::shouldHaveReceived('notice')->once()->withArgs(fn (string $message, array $context): bool => $context === [
+            'generation' => $generation->id,
+            'provider_id' => 'gen_held',
+            'local_error' => 'provider_unavailable',
+            'provider_status' => 'succeeded',
+        ]);
+    });
+
+    it('says nothing when a waiting generation is accepted', function (): void {
+        Log::spy();
+        $generation = Generation::factory()->waiting()->create();
+
+        resolve(ApplyProviderState::class)(GenerationData::fromArray(providerGeneration('queued', ['id' => 'gen_new', 'metadata' => ['local_id' => $generation->id]])));
+
+        Log::shouldNotHaveReceived('notice');
+    });
+});

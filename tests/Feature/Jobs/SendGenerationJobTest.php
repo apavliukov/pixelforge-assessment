@@ -49,12 +49,11 @@ it('may be run three times, for a run that a stopped worker left unfinished', fu
     expect($tries->tries)->toBe(3);
 });
 
-it('sends nothing when it is run again after the first run already failed the generation', function (): void {
+it('sends nothing when the queue runs it again, with the generation loaded afresh, after the first run failed it', function (): void {
     $generation = Generation::factory()->waiting()->create();
     Http::fake(['pixelforge.promptedit.dev/v1/generations' => Http::response(['error' => ['code' => 'content_policy_violation', 'message' => 'No.']], 400)]);
 
     runSubmitJob($generation);
-    // The queue loads the generation afresh for every run.
     runSubmitJob($generation->fresh());
 
     expect($generation->refresh()->status)->toBe(GenerationStatus::Failed);
