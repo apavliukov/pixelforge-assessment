@@ -130,9 +130,11 @@ privileged user it should become roles and permissions (`spatie/laravel-permissi
 the gate's body and nothing else. Rejected for now: a roles package, for one permission.
 
 **Demo accounts and one-click sign-in, behind a flag.**
-The assignment's submission form has room for a repository, a URL and an email — nowhere to give
-reviewers a login or say where the report is. So the sign-in page offers buttons for two demo users
-and a demo operator, created by the seeder with passwords nobody knows. A user is a demo account
+A reviewer should be able to look around as a user and as an operator without reading
+instructions first or being handed a password. So the sign-in page offers buttons for two demo users
+and a demo operator, created by the seeder with passwords nobody knows. The alternative was a test
+login written into the submission form: it works, but a password in a form is a shared secret that
+cannot be withdrawn, and it tells nobody that two views exist. A user is a demo account
 because the seeder marked it (`demo_account`), not because of its email, so nobody's own account
 can be opened by a demo button and a demo account's profile cannot be changed. The buttons and their route
 exist only while `DEMO_LOGIN_ENABLED` is on; a real product leaves it off. Cost: on the demo, anyone
