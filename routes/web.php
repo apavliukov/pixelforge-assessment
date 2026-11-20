@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\DemoLoginController;
 use App\Http\Controllers\GenerationEstimatesController;
 use App\Http\Controllers\GenerationsController;
 use App\Http\Controllers\OperatorReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/generations')->name('home');
+
+Route::post('demo-login/{demoAccount}', [DemoLoginController::class, 'store'])
+    ->middleware(['guest', 'throttle:10,1'])
+    ->name('demoLogin.store');
 
 Route::middleware(['auth'])->group(function (): void {
     Route::get('generations', [GenerationsController::class, 'index'])->name('generations.index');

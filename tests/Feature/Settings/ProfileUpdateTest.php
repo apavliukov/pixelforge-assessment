@@ -100,3 +100,13 @@ test('there is no way to delete an account', function (): void {
 
     expect($user->fresh())->not->toBeNull();
 });
+
+test('updating the profile cannot make someone an operator or a demo account', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => 'New Name', 'email' => $user->email, 'is_operator' => true, 'demo_account' => 'operator'])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->only(['name', 'is_operator', 'demo_account']))->toBe(['name' => 'New Name', 'is_operator' => false, 'demo_account' => null]);
+});

@@ -3,6 +3,8 @@
 set -e
 
 php artisan migrate --force
+# Creates the demo accounts that do not exist yet; safe to repeat on every start.
+php artisan db:seed --force
 php artisan optimize
 
 # Workaround for Render's free tier, which has no background workers and no cron

@@ -49,7 +49,7 @@ vendor/bin/sail artisan test
 Production is a single Docker image, `docker/production/Dockerfile`, built from the repository root.
 The hosting platform builds and runs it; nothing in the `Makefile` is involved.
 
-On start the container runs migrations, caches the configuration, and starts two queue workers
+On start the container runs migrations and the seeder, caches the configuration, and starts two queue workers
 (`submissions`; `webhooks` and `default`), the scheduler and the web server
 (`docker/production/start.sh`). It listens on `$PORT`.
 
@@ -64,16 +64,44 @@ Environment variables the host must provide:
 | `DB_CONNECTION`             | `pgsql`                                     |
 | `DB_URL`                    | Postgres connection string                  |
 | `LOG_CHANNEL`               | `stderr`                                    |
-| `OPERATOR_USER_IDS`         | ids of the users who may open the report    |
+| `DEMO_LOGIN_ENABLED`        | `true` on the public demo, see below        |
 | `PIXELFORGE_API_KEY`        | API key                                     |
 | `PIXELFORGE_WEBHOOK_SECRET` | `whsec_…` signing secret                    |
 
 Health check path: `/up`.
 
+### Demo accounts
+
+The seeder creates three accounts: two demo users, Ada and Bob, and a demo operator. Their passwords
+are random and recorded nowhere. With `DEMO_LOGIN_ENABLED=true` the sign-in page shows a button for
+each, and anyone can sign in as one of them without a password: the operator lands on the operator
+report, the users on the generation page. Registration stays open for anyone who wants an account
+of their own.
+
+This makes the public demo open on purpose. Anyone can spend the provider key's quota and read the
+operator report, which holds the demo accounts and whoever chose to register. Leave the variable
+unset anywhere real users or real money are involved: the buttons disappear and the route behind
+them answers 404.
+
+The seeder creates accounts only. It never creates generations: an invented one would carry a
+provider cost that Pixelforge knows nothing about, and the report could not reconcile.
+
 ## What I would do next
 
 Things left out on purpose to keep the assessment small, in the order I would take them on a
 production project.
+
+### Replace the operator flag with roles and permissions
+
+An operator is a user with `is_operator` set, and only the seeder sets it. That is a shortcut taken
+to keep the assessment small, and not something I would keep: a boolean column answers one question
+for one kind of privileged user, cannot say who granted it or when, and has no way to be managed
+from the app.
+
+The fix is role-based access control, for example `spatie/laravel-permission`: an `operator` role
+holding a `view operator report` permission, assigned and revoked through the app with a record of
+who did it. Authorization already goes through one gate, `viewOperatorReport`, so the change is the
+body of that gate and the seeder, and nothing that calls them.
 
 ### Generate the frontend types from the backend
 

@@ -20,6 +20,7 @@ final class ProfileController extends Controller
     {
         return Inertia::render('settings/Profile', [
             'status' => $request->session()->get('status'),
+            'canUpdate' => ! $request->user()->isDemoAccount(),
         ]);
     }
 

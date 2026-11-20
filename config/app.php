@@ -71,19 +71,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Operator User IDs
+    | Demo Sign-In
     |--------------------------------------------------------------------------
     |
-    | The users with these ids are operators: they may open the operator
-    | report. A comma-separated list of ids of users who already exist;
-    | anything that is not a whole number is ignored.
+    | When on, the sign-in page offers the seeded demo users and demo operator,
+    | and anyone can sign in as one of them without a password. Meant for a
+    | public demo; leave it off anywhere real users or real money are involved.
     |
     */
 
-    'operator_user_ids' => array_map(intval(...), array_values(array_filter(
-        array_map(trim(...), explode(',', (string) env('OPERATOR_USER_IDS', ''))),
-        ctype_digit(...),
-    ))),
+    'demo_login' => (bool) env('DEMO_LOGIN_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------

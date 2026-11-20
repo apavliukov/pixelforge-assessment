@@ -11,15 +11,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 
-/**
- * A user listed as an operator, next to whoever is listed already.
- */
 function operator(): User
 {
-    $operator = User::factory()->create();
-    config(['app.operator_user_ids' => [...config('app.operator_user_ids'), $operator->id]]);
-
-    return $operator;
+    return User::factory()->operator()->create();
 }
 
 /**

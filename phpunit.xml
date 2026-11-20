@@ -26,7 +26,7 @@
         <env name="DB_DATABASE" value="testing"/>
         <env name="DB_URL" value=""/>
         <env name="INERTIA_SSR_ENABLED" value="false"/>
-        <env name="OPERATOR_USER_IDS" value=""/>
+        <env name="DEMO_LOGIN_ENABLED" value="false"/>
         <env name="PIXELFORGE_API_KEY" value=""/>
         <env name="PIXELFORGE_WEBHOOK_SECRET" value=""/>
         <env name="MAIL_MAILER" value="array"/>

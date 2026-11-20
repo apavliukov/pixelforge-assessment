@@ -108,11 +108,24 @@ The assessment allows it. Cost: images disappear 24 hours after completion.
 **Open registration, no email verification.**
 Reviewers should get in without friction.
 
-**The operator report is guarded by a gate backed by a list of operator user ids in the environment.**
-Authorization goes through a gate, where it belongs; only the source of truth is simple. Moving to
-roles later means changing one gate body. Ids, not emails: registration is open and emails are not
-verified, so whoever registered an operator's email first would become an operator. An id exists
-only once the account does. Rejected: an `is_admin` column, and a roles package.
+**The operator report is guarded by a gate backed by an `is_operator` column that only the seeder sets.**
+Authorization goes through a gate, where it belongs; only the source of truth is simple. The column
+is not fillable, so neither registration nor a profile change can set it. It replaced a list of
+operator ids in the environment once operators came from a seeder: the list had to agree with the
+order rows were inserted in. A boolean is a shortcut for this assessment; with a second kind of
+privileged user it should become roles and permissions (`spatie/laravel-permission`), which changes
+the gate's body and nothing else. Rejected for now: a roles package, for one permission.
+
+**Demo accounts and one-click sign-in, behind a flag.**
+The assignment's submission form has room for a repository, a URL and an email — nowhere to give
+reviewers a login or say where the report is. So the sign-in page offers buttons for two demo users
+and a demo operator, created by the seeder with passwords nobody knows. A user is a demo account
+because the seeder marked it (`demo_account`), not because of its email, so nobody's own account
+can be opened by a demo button and a demo account's profile cannot be changed. The buttons and their route
+exist only while `DEMO_LOGIN_ENABLED` is on; a real product leaves it off. Cost: on the demo, anyone
+can spend the provider key's quota and read the operator report. The per-user limit and the
+provider's daily limit bound the first; the report holds only demo data and whoever chose to
+register. Registration stays, so a reviewer can also check with an account of their own.
 
 **Users cannot delete their accounts, and the database refuses to delete a user who has generations.**
 The starter kit's "Delete account" cascaded to the user's generations, which would erase provider

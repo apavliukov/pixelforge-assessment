@@ -36,6 +36,16 @@ final class UserFactory extends Factory
     }
 
     /**
+     * A user who may open the operator report.
+     */
+    public function operator(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'is_operator' => true,
+        ]);
+    }
+
+    /**
      * Indicate that the model's email address should be unverified.
      */
     public function unverified(): static

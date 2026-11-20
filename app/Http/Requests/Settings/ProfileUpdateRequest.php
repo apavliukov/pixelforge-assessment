@@ -14,6 +14,16 @@ final class ProfileUpdateRequest extends FormRequest
     use ProfileValidationRules;
 
     /**
+     * A demo account is shared by everyone who signs in with its button. Whoever changed its
+     * email could have a password reset sent there and keep the account, operator rights
+     * included.
+     */
+    public function authorize(): bool
+    {
+        return ! $this->user()->isDemoAccount();
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>

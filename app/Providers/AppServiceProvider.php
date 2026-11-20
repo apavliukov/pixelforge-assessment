@@ -55,12 +55,12 @@ final class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Operators are the users whose ids are listed in the environment. This gate is the only
-     * place that knows it.
+     * Operators are the users marked as such in the database. This gate is the only place that
+     * knows it.
      */
     private function defineGates(): void
     {
-        Gate::define('viewOperatorReport', static fn (User $user): bool => in_array($user->id, (array) config('app.operator_user_ids'), true));
+        Gate::define('viewOperatorReport', static fn (User $user): bool => $user->is_operator);
     }
 
     /**

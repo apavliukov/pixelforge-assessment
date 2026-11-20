@@ -89,3 +89,7 @@ _Avoid_: Usage (that is one generation's token counts), billing, invoice
 **Reconciliation**:
 Comparing a day's provider cost as we recorded it with the usage report for that day.
 _Avoid_: Audit, sync, verification
+
+**Demo account**:
+A user or operator created with the app, whom anyone can sign in as with one click while demo sign-in is switched on.
+_Avoid_: Test user, guest, sandbox account

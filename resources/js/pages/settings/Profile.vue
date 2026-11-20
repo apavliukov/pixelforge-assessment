@@ -20,6 +20,12 @@ defineOptions({
     },
 });
 
+defineProps<{
+    status?: string;
+    // False for a demo account: it is shared, so its name and email are fixed.
+    canUpdate: boolean;
+}>();
+
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 </script>
@@ -51,6 +57,7 @@ const user = computed(() => page.props.auth.user);
                     required
                     autocomplete="name"
                     placeholder="Full name"
+                    :disabled="!canUpdate"
                 />
                 <InputError class="mt-2" :message="errors.name" />
             </div>
@@ -66,11 +73,17 @@ const user = computed(() => page.props.auth.user);
                     required
                     autocomplete="username"
                     placeholder="Email address"
+                    :disabled="!canUpdate"
                 />
                 <InputError class="mt-2" :message="errors.email" />
             </div>
 
-            <div class="flex items-center gap-4">
+            <p v-if="!canUpdate" class="text-sm text-muted-foreground">
+                This is a demo account shared by everyone who tries the app, so
+                its name and email cannot be changed. Register to get an account
+                of your own.
+            </p>
+            <div v-else class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="update-profile-button"
                     >Save</Button
                 >
